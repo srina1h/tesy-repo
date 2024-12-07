@@ -353,20 +353,31 @@ namespace
                     if (branch_call_mapping.size() > 0)
                     {
                         writeToFile("\nLine Number" + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
+                        writeToFile("\nSeminal Input variable: ");
+                        bool first = true;
 
                         for (auto call : branch_call_mapping)
                         {
-                            std::string funcName = calledFunc.find(call.first) != calledFunc.end() ? calledFunc.at(call.first) : "unkown";
-
-                            if (auto CI = dyn_cast<CallInst>(call.first))
+                            if (first)
                             {
-                                writeToFile("\nSeminal Input: ");
                                 for (auto var : call.second)
                                 {
                                     writeToFile(var + ", ");
                                 }
+                                first = false;
+                            }
+
+                            std::string funcName = calledFunc.find(call.first) != calledFunc.end() ? calledFunc.at(call.first) : "unkown";
+
+                            if (auto CI = dyn_cast<CallInst>(call.first))
+                            {
+                                // writeToFile("\nSeminal Input: ");
+                                // for (auto var : call.second)
+                                // {
+                                //     writeToFile(var + ", ");
+                                // }
                                 writeToFile("\n");
-                                writeToFile("Function-" + funcName + " Line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
+                                writeToFile("used at Function-" + funcName + " on Line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
                             }
                         }
                     }
