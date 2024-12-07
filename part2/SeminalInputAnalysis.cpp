@@ -225,7 +225,7 @@ namespace
             {
                 if (arg->get()->getType()->getTypeID() == Type::TypeID::PointerTyID)
                 {
-                    auto *argVal = arg->get();
+                    Value *argVal = arg->get();
                     defUseAnalysis(argVal, dependentInstructions[CI]);
                 }
             }
