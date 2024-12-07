@@ -81,11 +81,6 @@ namespace
                             if (branchInst->isConditional())
                             {
                                 branches.push_back(branchInst);
-                                // if (branchInst->getDebugLoc())
-                                // {
-                                //     branches.push_back(branchInst);
-                                // }
-                                // processBranchInst(branchInst, branches);
                             }
                         }
 
@@ -129,7 +124,7 @@ namespace
 
             // Collect all instructions that use this variable.
             std::set<Instruction *> varUsers;
-            collectUsersRecursive(asDbgInst->getAddress(), varUsers);
+            defUseAnalysis(asDbgInst->getAddress(), varUsers);
 
             // Iterate over all users of the variable.
             for (auto user : varUsers)
@@ -156,18 +151,9 @@ namespace
                     valueToVariableNameMap[unaryInst] = variableName;
                 }
             }
-
-            // write the valueToVariableNameMap to the file
-            std::string va = "valueToVariableNameMap\n";
-            for (auto entry : valueToVariableNameMap)
-            {
-                va += entry.second + " : " + std::to_string(reinterpret_cast<uintptr_t>(entry.first)) + "\n";
-            }
-
-            writeToFile(va);
         }
 
-        void collectUsersRecursive(Value *value, std::set<Instruction *> &userInstructions)
+        void defUseAnalysis(Value *value, std::set<Instruction *> &userInstructions)
         {
             // Check if the value is null to prevent processing an invalid value.
             if (!value)
@@ -194,7 +180,7 @@ namespace
                     if (isa<StoreInst>(inst))
                     {
                         auto storeInst = dyn_cast<StoreInst>(inst);
-                        collectUsersRecursive(storeInst->getPointerOperand(), userInstructions);
+                        defUseAnalysis(storeInst->getPointerOperand(), userInstructions);
                     }
                     // Special handling for Return instructions: if it returns a value, recursively collect users.
                     else if (isa<ReturnInst>(inst))
@@ -202,12 +188,12 @@ namespace
                         auto asRetInstruction = dyn_cast<ReturnInst>(inst);
                         if (asRetInstruction->getReturnValue())
                         {
-                            collectUsersRecursive(asRetInstruction->getFunction(), userInstructions);
+                            defUseAnalysis(asRetInstruction->getFunction(), userInstructions);
                         }
                     }
 
                     // Recursively collect users of this instruction.
-                    collectUsersRecursive(inst, userInstructions);
+                    defUseAnalysis(inst, userInstructions);
                 }
             }
         }
@@ -237,7 +223,7 @@ namespace
             }
 
             // Collect users of this call instruction recursively.
-            collectUsersRecursive(callInstruction, instructionDependencyMap[callInstruction]);
+            defUseAnalysis(callInstruction, instructionDependencyMap[callInstruction]);
 
             // Iterate over the arguments of the call instruction.
             for (auto arg = callInstruction->arg_begin(); arg != callInstruction->arg_end(); ++arg)
@@ -246,7 +232,7 @@ namespace
                 {
                     auto argumentValue = arg->get();
                     // Collect users of this argument recursively.
-                    collectUsersRecursive(argumentValue, instructionDependencyMap[callInstruction]);
+                    defUseAnalysis(argumentValue, instructionDependencyMap[callInstruction]);
                 }
             }
 
@@ -278,16 +264,16 @@ namespace
 
         void cleanFunctionNameFromCompilerInfo(std::string &functionName)
         {
-            static const std::vector<std::string> compilerInfoToRemove = {"__isoc90_", "__isoc99_"};
+            // static const std::vector<std::string> compilerInfoToRemove = {"__isoc90_", "__isoc99_"};
 
-            for (const auto &info : compilerInfoToRemove)
-            {
-                size_t pos = functionName.find(info);
-                if (pos != std::string::npos)
-                {
-                    functionName.erase(pos, info.length());
-                }
-            }
+            // for (const auto &info : compilerInfoToRemove)
+            // {
+            //     size_t pos = functionName.find(info);
+            //     if (pos != std::string::npos)
+            //     {
+            //         functionName.erase(pos, info.length());
+            //     }
+            // }
         }
 
         void analyzeAndPrintOutput(std::map<Value *, std::string> &valueToVariableNameMap,
@@ -376,13 +362,14 @@ namespace
                                         const std::vector<std::string> &variableValues,
                                         const std::string &functionName)
         {
-            // Join the variable names influenced by this call into a single string.
-            std::string varUseString = join(variableValues, ", ");
             // Output the detected seminal input and the function causing it.
-            // write this to a file
-            outs() << "\n\tSeminal input detected: " << varUseString << "\n";
-            outs() << "\tuser input using function " << functionName << " on line " << asCallInst->getDebugLoc()->getLine() << "\n";
-            outs().flush();
+            writeToFile("\nSeminal input detected: ");
+            for (auto var : variableValues)
+            {
+                writeToFile(var + ", ");
+            }
+            writeToFile("\n");
+            writeToFile("user input using function " + functionName + " on line " + std::to_string(asCallInst->getDebugLoc()->getLine()) + "\n");
         }
 
         std::string getFunctionName(Value *callInst, const std::map<Value *, std::string> &valueToNameMap)
@@ -399,36 +386,6 @@ namespace
             file << content;
             file.close();
         }
-
-        // Utility function to join elements of a vector into a string separated by a delimiter.
-        std::string join(const std::vector<std::string> &vec, const std::string &delim)
-        {
-            std::ostringstream oss;
-            // Concatenate the elements of the vector, separated by the delimiter.
-            for (size_t i = 0; i < vec.size(); ++i)
-            {
-                if (i != 0)
-                    oss << delim;
-                oss << vec[i];
-            }
-            return oss.str();
-        }
-
-        // int getLine(BasicBlock &BB)
-        // {
-        //     if (!BB.empty())
-        //     {
-        //         for (Instruction &I : BB)
-        //         {
-        //             DebugLoc DL = I.getDebugLoc();
-        //             if (DL)
-        //             {
-        //                 return DL.getLine();
-        //             }
-        //         }
-        //     }
-        //     return -1;
-        // }
     };
 }
 
