@@ -196,10 +196,10 @@ namespace
             }
         }
 
-        void processCallInstruction(CallInst *callInstruction)
+        void processCallInstruction(CallInst *CI)
         {
             // Extract the name of the function being called.
-            std::string calledFunctionName = callInstruction->getCalledFunction()->getName().str();
+            std::string calledFunctionName = CI->getCalledFunction()->getName().str();
             // Clean any compiler-specific naming additions from the function name.
             // cleanFunctionNameFromCompilerInfo(calledFunctionName);
 
@@ -211,47 +211,47 @@ namespace
             }
 
             // Initialize the entry in the instruction dependency map for this call instruction if it doesn't exist.
-            if (dependentInstructions.find(callInstruction) == dependentInstructions.end())
+            if (dependentInstructions.find(CI) == dependentInstructions.end())
             {
-                dependentInstructions[callInstruction] = {};
-                calledFunc[callInstruction] = calledFunctionName;
+                dependentInstructions[CI] = {};
+                calledFunc[CI] = calledFunctionName;
             }
 
             // Collect users of this call instruction recursively.
-            defUseAnalysis(callInstruction, dependentInstructions[callInstruction]);
+            defUseAnalysis(CI, dependentInstructions[CI]);
 
             // Iterate over the arguments of the call instruction.
-            for (auto arg = callInstruction->arg_begin(); arg != callInstruction->arg_end(); ++arg)
+            for (auto arg = CI->arg_begin(); arg != CI->arg_end(); ++arg)
             {
                 if (arg->get()->getType()->getTypeID() == Type::TypeID::PointerTyID)
                 {
                     auto argumentValue = arg->get();
                     // Collect users of this argument recursively.
-                    defUseAnalysis(argumentValue, dependentInstructions[callInstruction]);
+                    defUseAnalysis(argumentValue, dependentInstructions[CI]);
                 }
             }
 
             // Trace the instruction for variable name mapping.
-            Instruction *traceInstruction = callInstruction;
+            Instruction *nextInst = CI;
 
             // Iterate over the value to variable name map.
-            for (auto entry : variables)
+            for (auto var : variables)
             {
                 // Check for Store instructions and update mapping.
-                if (auto storeInstruction = dyn_cast<StoreInst>(entry.first))
+                if (auto SI = dyn_cast<StoreInst>(var.first))
                 {
-                    if (storeInstruction->getOperand(0) == traceInstruction)
+                    if (SI->getOperand(0) == nextInst)
                     {
-                        variables[callInstruction] = variables[entry.first];
+                        variables[CI] = variables[var.first];
                         break;
                     }
                 }
                 // Check for Cast instructions and update the trace instruction.
-                else if (auto asCastInstruction = dyn_cast<CastInst>(entry.first))
+                else if (auto CAI = dyn_cast<CastInst>(var.first))
                 {
-                    if (asCastInstruction->getOperand(0) == callInstruction)
+                    if (CAI->getOperand(0) == CI)
                     {
-                        traceInstruction = asCastInstruction;
+                        nextInst = CAI;
                     }
                 }
             }
