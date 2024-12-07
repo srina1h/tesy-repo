@@ -414,21 +414,21 @@ namespace
             return oss.str();
         }
 
-        int getLine(BasicBlock &BB)
-        {
-            if (!BB.empty())
-            {
-                for (Instruction &I : BB)
-                {
-                    DebugLoc DL = I.getDebugLoc();
-                    if (DL)
-                    {
-                        return DL.getLine();
-                    }
-                }
-            }
-            return -1;
-        }
+        // int getLine(BasicBlock &BB)
+        // {
+        //     if (!BB.empty())
+        //     {
+        //         for (Instruction &I : BB)
+        //         {
+        //             DebugLoc DL = I.getDebugLoc();
+        //             if (DL)
+        //             {
+        //                 return DL.getLine();
+        //             }
+        //         }
+        //     }
+        //     return -1;
+        // }
     };
 }
 
