@@ -387,7 +387,9 @@ namespace
                     {
                         if (Value *Operand = Cmp->getOperand(1))
                         {
-                            writeToFile("\nInfluential Variable: " + Operand->getName().str() + "\n");
+                            StringRef operandName = Operand->getName();
+                            errs() << "Influential Variable: " << operandName << "\n";
+                            writeToFile("\nInfluential Variable: " + operandName.str() + "\n");
                         }
                     }
                 }
