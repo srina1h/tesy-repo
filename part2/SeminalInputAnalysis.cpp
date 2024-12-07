@@ -18,13 +18,6 @@ using namespace llvm;
 
 namespace
 {
-    struct BranchInfo
-    {
-        std::string fileName; // Filename where the branch is located
-        int branchLine;       // Line number of the branch instruction
-        int targetLine;       // Line number of the target instruction
-    };
-
     // List of user input functions to be monitored
     std::vector<std::string> userInputFunctions = {
         "fopen",
@@ -46,13 +39,15 @@ namespace
     class SeminalInputAnalysis : public PassInfoMixin<SeminalInputAnalysis>
     {
     public:
-        // Main method to run the pass
+        /**
+         * @brief Serves as the entry point for the analysis (main function of the pass)
+         * @param M The module to be analyzed
+         * @param MAM The module analysis manager
+         * @return PreservedAnalyses
+         */
         PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
         {
             writeToFile("Seminal Input Analysis\n");
-            std::map<std::string, BranchInfo> branchInfoMap;
-            // Maps a unique identifier (e.g., branch instruction address) to BranchInfo.
-            // BranchInfo contains metadata about branch instructions such as file name, line numbers.
 
             std::map<Value *, std::string> valueToVariableNameMap;
             // Maps LLVM Values to their corresponding variable names as found in the source code.
@@ -85,7 +80,7 @@ namespace
                         {
                             if (branchInst->isConditional())
                             {
-                                processBranchInst(branchInst, branchInfoMap, conditionalBranches);
+                                processBranchInst(branchInst, conditionalBranches);
                             }
                         }
 
@@ -201,7 +196,6 @@ namespace
 
         // Process branch instructions to collect branch info and conditional branches
         void processBranchInst(llvm::BranchInst *branchInst,
-                               std::map<std::string, BranchInfo> &branchInfoMap,
                                std::list<llvm::BranchInst *> &conditionalBranches);
 
         void writeToFile(std::string content);
@@ -532,7 +526,6 @@ namespace
     }
 
     void SeminalInputAnalysis::processBranchInst(BranchInst *branchInst,
-                                                 std::map<std::string, BranchInfo> &branchInfoMap,
                                                  std::list<BranchInst *> &conditionalBranches)
     {
         // Retrieve the debug location of the branch instruction.
@@ -554,7 +547,6 @@ namespace
             // Create a unique identifier for the branch (using the name or address).
             std::string brID = succ->hasName() ? succ->getName().str() : "br_" + std::to_string(reinterpret_cast<uintptr_t>(succ));
             // Store the branch information in the map.
-            branchInfoMap[brID] = {scope->getFilename().str(), line, targetLine};
         }
         // Add the branch instruction to the list of conditional branches.
         conditionalBranches.emplace_back(branchInst);
