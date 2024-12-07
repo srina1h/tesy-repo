@@ -366,7 +366,7 @@ namespace
                                     writeToFile(var + ", ");
                                 }
                                 writeToFile("\n");
-                                writeToFile("Function-" + funcName + "on line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
+                                writeToFile("Function-" + funcName + " Line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
                             }
                         }
                     }
