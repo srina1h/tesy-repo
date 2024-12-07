@@ -33,7 +33,7 @@ namespace
          */
         PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
         {
-            writeToFile("Seminal Input Analysis\n");
+            writeToFile("Seminal Input Features Analysis Pass: \n");
 
             // OBJECTIVE: Find conditional branching
 
@@ -43,6 +43,7 @@ namespace
                 {
                     for (Instruction &I : BB)
                     {
+                        // We first note all the conditional branches in the program
                         if (auto *BI = dyn_cast<BranchInst>(&I))
                         {
                             if (BI->isConditional())
@@ -50,18 +51,20 @@ namespace
                                 branches.push_back(BI);
                             }
                         }
+                        /* We take advantage of the metadata stored in the dbgDeeclareInst
+                        In order to find the variable names. We can them trace their use
+                        through the program */
                         else if (auto *DI = dyn_cast<DbgDeclareInst>(&I))
                         {
                             std::string varName = DI->getVariable()->getName().str();
 
-                            // Map the address of the variable to its name.
+                            // Store name of the variable with its address as key
                             variables[DI->getAddress()] = varName;
 
-                            // Collect all instructions that use this variable.
+                            // Perform def-use analysis on the variable
                             std::set<Instruction *> dependents;
                             defUseAnalysis(DI->getAddress(), dependents);
 
-                            // Iterate over all users of the variable.
                             for (auto dep : dependents)
                             {
                                 // if load instruction uses this var in an operand, store the variable name with its address as key
@@ -101,10 +104,7 @@ namespace
                     {
                         if (auto CI = dyn_cast<CallInst>(&I))
                         {
-                            if (CI->getCalledFunction())
-                            {
-                                processCallInstruction(CI);
-                            }
+                            checkCallInst(CI);
                         }
                     }
                 }
@@ -196,79 +196,65 @@ namespace
             }
         }
 
-        void processCallInstruction(CallInst *callInstruction)
+        void checkCallInst(CallInst *CI)
         {
-            // Extract the name of the function being called.
-            std::string calledFunctionName = callInstruction->getCalledFunction()->getName().str();
-            // Clean any compiler-specific naming additions from the function name.
-            cleanFunctionNameFromCompilerInfo(calledFunctionName);
-
-            // Check if the called function is part of the user input functions list.
-            if (std::find(userInputFunctions.begin(), userInputFunctions.end(), calledFunctionName) == userInputFunctions.end())
+            if (CI->getCalledFunction())
             {
-                // If not, return and do not process further.
+                return;
+            }
+            std::string funcName = CI->getCalledFunction()->getName().str();
+
+            // check if function among library functions and if it is, retunbe
+            if (std::find(userInputFunctions.begin(), userInputFunctions.end(), funcName) == userInputFunctions.end())
+            {
                 return;
             }
 
-            // Initialize the entry in the instruction dependency map for this call instruction if it doesn't exist.
-            if (dependentInstructions.find(callInstruction) == dependentInstructions.end())
+            // check if the function is in the calledFuncMap, if its not, add it
+            if (dependentInstructions.find(CI) == dependentInstructions.end())
             {
-                dependentInstructions[callInstruction] = {};
-                calledFunc[callInstruction] = calledFunctionName;
+                dependentInstructions[CI] = std::set<Instruction *>();
+                calledFunc[CI] = funcName;
             }
 
-            // Collect users of this call instruction recursively.
-            defUseAnalysis(callInstruction, dependentInstructions[callInstruction]);
+            // Perform def-use analysis to find the dependent instructions
+            defUseAnalysis(CI, dependentInstructions[CI]);
 
-            // Iterate over the arguments of the call instruction.
-            for (auto arg = callInstruction->arg_begin(); arg != callInstruction->arg_end(); ++arg)
+            // Perform def-use analysis on the arguments of the function
+            for (auto arg = CI->arg_begin(); arg != CI->arg_end(); ++arg)
             {
                 if (arg->get()->getType()->getTypeID() == Type::TypeID::PointerTyID)
                 {
-                    auto argumentValue = arg->get();
-                    // Collect users of this argument recursively.
-                    defUseAnalysis(argumentValue, dependentInstructions[callInstruction]);
+                    Value *argVal = arg->get();
+                    defUseAnalysis(argVal, dependentInstructions[CI]);
                 }
             }
 
-            // Trace the instruction for variable name mapping.
-            Instruction *traceInstruction = callInstruction;
+            Instruction *nextInst = CI;
 
-            // Iterate over the value to variable name map.
-            for (auto entry : variables)
+            /* Go through previously mapped variables and check if they are instructions
+            that are dependent on the current call instruction. if so, update the variables map
+            to reflect that the current call instuction is responsible for the use of the variable
+            */
+
+            for (auto var : variables)
             {
-                // Check for Store instructions and update mapping.
-                if (auto storeInstruction = dyn_cast<StoreInst>(entry.first))
+                if (auto SI = dyn_cast<StoreInst>(var.first))
                 {
-                    if (storeInstruction->getOperand(0) == traceInstruction)
+                    if (SI->getOperand(0) == nextInst)
                     {
-                        variables[callInstruction] = variables[entry.first];
+                        variables[CI] = variables[var.first];
                         break;
                     }
                 }
-                // Check for Cast instructions and update the trace instruction.
-                else if (auto asCastInstruction = dyn_cast<CastInst>(entry.first))
+                else if (auto CAI = dyn_cast<CastInst>(var.first))
                 {
-                    if (asCastInstruction->getOperand(0) == callInstruction)
+                    if (CAI->getOperand(0) == CI)
                     {
-                        traceInstruction = asCastInstruction;
+                        nextInst = CAI;
                     }
                 }
             }
-        }
-
-        void cleanFunctionNameFromCompilerInfo(std::string &functionName)
-        {
-            // static const std::vector<std::string> compilerInfoToRemove = {"__isoc90_", "__isoc99_"};
-
-            // for (const auto &info : compilerInfoToRemove)
-            // {
-            //     size_t pos = functionName.find(info);
-            //     if (pos != std::string::npos)
-            //     {
-            //         functionName.erase(pos, info.length());
-            //     }
-            // }
         }
 
         void analyzeAndPrintOutput()
@@ -338,8 +324,6 @@ namespace
             {
                 // Get the name of the function being called.
                 auto calledFunctName = getFunctionName(userInputCall.first);
-                // Clean any compiler-specific information from the function name.
-                cleanFunctionNameFromCompilerInfo(calledFunctName);
 
                 // Process this call instruction if it's a user input call.
                 if (auto asCallInst = dyn_cast<CallInst>(userInputCall.first))
