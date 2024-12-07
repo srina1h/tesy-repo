@@ -409,8 +409,8 @@ namespace
             return callInstToVarNames;
         }
 
-        voidprocessUserInputCalls(const std::map<llvm::Value *, std::vector<std::string>> &callInstToVarNames,
-                                  const std::map<llvm::Value *, std::string> &valueToNameMap)
+        void processUserInputCalls(const std::map<llvm::Value *, std::vector<std::string>> &callInstToVarNames,
+                                   const std::map<llvm::Value *, std::string> &valueToNameMap)
         {
             // Iterate over all call instructions that are influenced by user input.
             for (auto userInputCall : callInstToVarNames)
@@ -447,7 +447,7 @@ namespace
             return valueToNameMap.find(callInst) != valueToNameMap.end() ? valueToNameMap.at(callInst) : "some function";
         }
 
-        void SeminalInputAnalysis::writeToFile(std::string content)
+        void writeToFile(std::string content)
         {
             // Write the content to a file lol.txt, if not there, create one
             std::ofstream file;
@@ -470,7 +470,7 @@ namespace
             return oss.str();
         }
 
-        int SeminalInputAnalysis::getLine(BasicBlock &BB)
+        int getLine(BasicBlock &BB)
         {
             if (!BB.empty())
             {
