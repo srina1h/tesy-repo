@@ -80,7 +80,11 @@ namespace
                         {
                             if (branchInst->isConditional())
                             {
-                                processBranchInst(branchInst, branches);
+                                if (branchInst->getDebugLoc())
+                                {
+                                    branches.push_back(branchInst);
+                                }
+                                // processBranchInst(branchInst, branches);
                             }
                         }
 
