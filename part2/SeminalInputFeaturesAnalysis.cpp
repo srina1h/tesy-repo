@@ -391,8 +391,11 @@ namespace
 
                             // Print operand directly
                             llvm::errs() << "Operand " << i << ": ";
-                            Operand->print(llvm::errs());
-                            llvm::errs() << "\n";
+                            // Operand->print(llvm::errs());
+                            // llvm::errs() << "\n";
+                            std::string operandName = variables[Operand];
+
+                            llvm::errs() << operandName << "\n";
                         }
                         // errs() << "Exit Condition: " << *Cmp << "\n";
                         // if (Value *Operand = Cmp->getOperand(1))
