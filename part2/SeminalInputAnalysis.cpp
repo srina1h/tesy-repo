@@ -201,7 +201,7 @@ namespace
             // Extract the name of the function being called.
             std::string calledFunctionName = callInstruction->getCalledFunction()->getName().str();
             // Clean any compiler-specific naming additions from the function name.
-            cleanFunctionNameFromCompilerInfo(calledFunctionName);
+            // cleanFunctionNameFromCompilerInfo(calledFunctionName);
 
             // Check if the called function is part of the user input functions list.
             if (std::find(userInputFunctions.begin(), userInputFunctions.end(), calledFunctionName) == userInputFunctions.end())
@@ -255,20 +255,6 @@ namespace
                     }
                 }
             }
-        }
-
-        void cleanFunctionNameFromCompilerInfo(std::string &functionName)
-        {
-            // static const std::vector<std::string> compilerInfoToRemove = {"__isoc90_", "__isoc99_"};
-
-            // for (const auto &info : compilerInfoToRemove)
-            // {
-            //     size_t pos = functionName.find(info);
-            //     if (pos != std::string::npos)
-            //     {
-            //         functionName.erase(pos, info.length());
-            //     }
-            // }
         }
 
         void analyzeAndPrintOutput()
@@ -339,7 +325,7 @@ namespace
                 // Get the name of the function being called.
                 auto calledFunctName = getFunctionName(userInputCall.first);
                 // Clean any compiler-specific information from the function name.
-                cleanFunctionNameFromCompilerInfo(calledFunctName);
+                // cleanFunctionNameFromCompilerInfo(calledFunctName);
 
                 // Process this call instruction if it's a user input call.
                 if (auto asCallInst = dyn_cast<CallInst>(userInputCall.first))
