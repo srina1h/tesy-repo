@@ -58,6 +58,7 @@ namespace
          */
         PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
         {
+            writeToFile("\n==================================\n");
             writeToFile("Seminal Input Features Analysis Pass:\n");
             writeToFile("====================================\n");
 
@@ -140,8 +141,9 @@ namespace
 
             performAnalysis();
 
-            writeToFile("\n====================================\n");
+            writeToFile("\n==================================\n");
             writeToFile("Analysis of Loops: \n");
+            writeToFile("\n==================================\n");
 
             // OBJECTIVE: Perform Loop Analysis
 
