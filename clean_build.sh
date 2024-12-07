@@ -8,4 +8,4 @@ cd ..
 # /opt/homebrew/opt/llvm/bin/llvm-dis tests/red_black_tree.bc -o tests/red_black_tree.ll
 # /opt/homebrew/opt/llvm/bin/opt -load-pass-plugin build/libSeminalInputAnalysis.so -passes=SeminalInputAnalysis -disable-output tests/red_black_tree.bc
 
-/opt/homebrew/opt/llvm/bin/clang -g -o0 -fpass-plugin=build/libSeminalInputAnalysis.so -emit-llvm -c tests/bzip2.c -o test-output/bzip2.ll
+clang -g -o0 -fpass-plugin=build/libSeminalInputAnalysis.so -emit-llvm -c tests/bzip2.c -o test-output/bzip2.ll
