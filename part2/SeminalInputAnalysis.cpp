@@ -162,7 +162,7 @@ namespace
 
         // void writeToFile(std::string content);
 
-        void SeminalInputAnalysis::processDbgInst(DbgDeclareInst *asDbgInst, std::map<Value *, std::string> &valueToVariableNameMap)
+        void processDbgInst(DbgDeclareInst *asDbgInst, std::map<Value *, std::string> &valueToVariableNameMap)
         {
             // Extract the variable name from the debug information.
             std::string variableName = asDbgInst->getVariable()->getName().str();
@@ -210,7 +210,7 @@ namespace
             writeToFile(va);
         }
 
-        void SeminalInputAnalysis::collectUsersRecursive(Value *value, std::set<Instruction *> &userInstructions)
+        void collectUsersRecursive(Value *value, std::set<Instruction *> &userInstructions)
         {
             // Check if the value is null to prevent processing an invalid value.
             if (!value)
@@ -255,10 +255,10 @@ namespace
             }
         }
 
-        void SeminalInputAnalysis::processCallInstruction(CallInst *callInstruction,
-                                                          std::map<Value *, std::set<Instruction *>> &instructionDependencyMap,
-                                                          std::map<llvm::Value *, std::string> &valueToNameMap,
-                                                          std::map<Value *, std::string> &valueToVariableNameMap)
+        void processCallInstruction(CallInst *callInstruction,
+                                    std::map<Value *, std::set<Instruction *>> &instructionDependencyMap,
+                                    std::map<llvm::Value *, std::string> &valueToNameMap,
+                                    std::map<Value *, std::string> &valueToVariableNameMap)
         {
             // Extract the name of the function being called.
             std::string calledFunctionName = callInstruction->getCalledFunction()->getName().str();
@@ -319,7 +319,7 @@ namespace
             }
         }
 
-        void SeminalInputAnalysis::cleanFunctionNameFromCompilerInfo(std::string &functionName)
+        void cleanFunctionNameFromCompilerInfo(std::string &functionName)
         {
             static const std::vector<std::string> compilerInfoToRemove = {"__isoc90_", "__isoc99_"};
 
@@ -333,10 +333,10 @@ namespace
             }
         }
 
-        void SeminalInputAnalysis::analyzeAndPrintOutput(std::map<llvm::Value *, std::string> &valueToVariableNameMap,
-                                                         std::map<llvm::Value *, std::string> &valueToNameMap,
-                                                         std::map<llvm::Value *, std::set<llvm::Instruction *>> &callInstructionDependencyMap,
-                                                         std::list<llvm::BranchInst *> &conditionalBranches)
+        void analyzeAndPrintOutput(std::map<llvm::Value *, std::string> &valueToVariableNameMap,
+                                   std::map<llvm::Value *, std::string> &valueToNameMap,
+                                   std::map<llvm::Value *, std::set<llvm::Instruction *>> &callInstructionDependencyMap,
+                                   std::list<llvm::BranchInst *> &conditionalBranches)
         {
             // Iterate over each conditional branch instruction.
             for (auto branch : conditionalBranches)
@@ -355,7 +355,7 @@ namespace
             }
         }
 
-        std::list<llvm::Value *> SeminalInputAnalysis::getConditionalValues(llvm::BranchInst *branch)
+        std::list<llvm::Value *> getConditionalValues(llvm::BranchInst *branch)
         {
             std::list<llvm::Value *> condValues;
             // Get the condition of the branch.
@@ -371,7 +371,7 @@ namespace
             return condValues;
         }
 
-        std::map<llvm::Value *, std::vector<std::string>> SeminalInputAnalysis::mapCallInstToVarNames(
+        std::map<llvm::Value *, std::vector<std::string>> mapCallInstToVarNames(
             const std::list<llvm::Value *> &condValues,
             const std::map<llvm::Value *, std::set<llvm::Instruction *>> &callInstructionDependencyMap,
             const std::map<llvm::Value *, std::string> &valueToVariableNameMap)
@@ -409,8 +409,8 @@ namespace
             return callInstToVarNames;
         }
 
-        void SeminalInputAnalysis::processUserInputCalls(const std::map<llvm::Value *, std::vector<std::string>> &callInstToVarNames,
-                                                         const std::map<llvm::Value *, std::string> &valueToNameMap)
+        voidprocessUserInputCalls(const std::map<llvm::Value *, std::vector<std::string>> &callInstToVarNames,
+                                  const std::map<llvm::Value *, std::string> &valueToNameMap)
         {
             // Iterate over all call instructions that are influenced by user input.
             for (auto userInputCall : callInstToVarNames)
@@ -428,9 +428,9 @@ namespace
             }
         }
 
-        void SeminalInputAnalysis::processSingleUserInputCall(llvm::CallInst *asCallInst,
-                                                              const std::vector<std::string> &variableValues,
-                                                              const std::string &functionName)
+        void processSingleUserInputCall(llvm::CallInst *asCallInst,
+                                        const std::vector<std::string> &variableValues,
+                                        const std::string &functionName)
         {
             // Join the variable names influenced by this call into a single string.
             std::string varUseString = join(variableValues, ", ");
@@ -441,7 +441,7 @@ namespace
             llvm::outs().flush();
         }
 
-        std::string SeminalInputAnalysis::getFunctionName(llvm::Value *callInst, const std::map<llvm::Value *, std::string> &valueToNameMap)
+        std::string getFunctionName(llvm::Value *callInst, const std::map<llvm::Value *, std::string> &valueToNameMap)
         {
             // Return the function name if found, otherwise return a placeholder.
             return valueToNameMap.find(callInst) != valueToNameMap.end() ? valueToNameMap.at(callInst) : "some function";
@@ -457,7 +457,7 @@ namespace
         }
 
         // Utility function to join elements of a vector into a string separated by a delimiter.
-        std::string SeminalInputAnalysis::join(const std::vector<std::string> &vec, const std::string &delim)
+        std::string join(const std::vector<std::string> &vec, const std::string &delim)
         {
             std::ostringstream oss;
             // Concatenate the elements of the vector, separated by the delimiter.
@@ -486,8 +486,8 @@ namespace
             return -1;
         }
 
-        void SeminalInputAnalysis::processBranchInst(BranchInst *branchInst,
-                                                     std::list<BranchInst *> &conditionalBranches)
+        void processBranchInst(BranchInst *branchInst,
+                               std::list<BranchInst *> &conditionalBranches)
         {
             // Retrieve the debug location of the branch instruction.
             DebugLoc DL = branchInst->getDebugLoc();
