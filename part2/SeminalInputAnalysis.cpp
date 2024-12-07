@@ -287,94 +287,94 @@ namespace
             }
         }
 
-        void perform_Analysis()
-        {
-            // Iterate over each conditional branch instruction.
-            for (auto branch : branches)
-            {
-                // Retrieve the values involved in the condition of the branch.
-                auto condValues = getConditionalValues(branch);
-                // Map call instructions to variable names based on these conditional values.
-                auto callInstToVarNames = mapCallInstToVarNames(condValues);
+        // void perform_Analysis()
+        // {
+        //     // Iterate over each conditional branch instruction.
+        //     for (auto branch : branches)
+        //     {
+        //         // Retrieve the values involved in the condition of the branch.
+        //         auto condValues = getConditionalValues(branch);
+        //         // Map call instructions to variable names based on these conditional values.
+        //         auto callInstToVarNames = mapCallInstToVarNames(condValues);
 
-                // If there are any call instructions associated with this branch, process them.
-                if (!callInstToVarNames.empty())
-                {
-                    writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
-                    processUserInputCalls(callInstToVarNames, calledFunc);
-                }
-            }
-        }
+        //         // If there are any call instructions associated with this branch, process them.
+        //         if (!callInstToVarNames.empty())
+        //         {
+        //             writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
+        //             processUserInputCalls(callInstToVarNames, calledFunc);
+        //         }
+        //     }
+        // }
 
-        std::vector<Value *> getConditionalValues(BranchInst *branch)
-        {
-            std::vector<Value *> condValues;
-            // Get the condition of the branch.
-            auto branchCondition = branch->getCondition();
-            // If the condition is an integer comparison, collect the values involved in the comparison.
-            if (isa<ICmpInst>(branchCondition))
-            {
-                auto asICmpInst = dyn_cast<ICmpInst>(branchCondition);
-                condValues.push_back(asICmpInst);
-                condValues.push_back(asICmpInst->getOperand(0));
-                condValues.push_back(asICmpInst->getOperand(1));
-            }
-            return condValues;
-        }
+        // std::vector<Value *> getConditionalValues(BranchInst *branch)
+        // {
+        //     std::vector<Value *> condValues;
+        //     // Get the condition of the branch.
+        //     auto branchCondition = branch->getCondition();
+        //     // If the condition is an integer comparison, collect the values involved in the comparison.
+        //     if (isa<ICmpInst>(branchCondition))
+        //     {
+        //         auto asICmpInst = dyn_cast<ICmpInst>(branchCondition);
+        //         condValues.push_back(asICmpInst);
+        //         condValues.push_back(asICmpInst->getOperand(0));
+        //         condValues.push_back(asICmpInst->getOperand(1));
+        //     }
+        //     return condValues;
+        // }
 
-        std::map<Value *, std::vector<std::string>> mapCallInstToVarNames(
-            const std::vector<Value *> &condValues)
-        {
-            std::map<Value *, std::vector<std::string>> callInstToVarNames;
-            // Iterate over the call instruction dependency map.
-            for (auto entry : dependentInstructions)
-            {
-                // For each instruction that uses a value involved in a conditional branch.
-                for (auto use : entry.second)
-                {
-                    if (std::find(condValues.begin(), condValues.end(), use) != condValues.end())
-                    {
-                        // If a variable name is associated with the use, add it to the map.
-                        if (variables.find(use) != variables.end())
-                        {
-                            callInstToVarNames[entry.first].push_back(variables.at(use));
-                        }
-                    }
-                }
-            }
-            return callInstToVarNames;
-        }
+        // std::map<Value *, std::vector<std::string>> mapCallInstToVarNames(
+        //     const std::vector<Value *> &condValues)
+        // {
+        //     std::map<Value *, std::vector<std::string>> callInstToVarNames;
+        //     // Iterate over the call instruction dependency map.
+        //     for (auto entry : dependentInstructions)
+        //     {
+        //         // For each instruction that uses a value involved in a conditional branch.
+        //         for (auto use : entry.second)
+        //         {
+        //             if (std::find(condValues.begin(), condValues.end(), use) != condValues.end())
+        //             {
+        //                 // If a variable name is associated with the use, add it to the map.
+        //                 if (variables.find(use) != variables.end())
+        //                 {
+        //                     callInstToVarNames[entry.first].push_back(variables.at(use));
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     return callInstToVarNames;
+        // }
 
-        void processUserInputCalls(const std::map<Value *, std::vector<std::string>> &callInstToVarNames,
-                                   const std::map<Value *, std::string> &calledFunc)
-        {
-            // Iterate over all call instructions that are influenced by user input.
-            for (auto userInputCall : callInstToVarNames)
-            {
-                // Get the name of the function being called.
-                std::string calledFunctName = calledFunc.find(userInputCall.first) != calledFunc.end() ? calledFunc.at(userInputCall.first) : "unkown";
+        // void processUserInputCalls(const std::map<Value *, std::vector<std::string>> &callInstToVarNames,
+        //                            const std::map<Value *, std::string> &calledFunc)
+        // {
+        //     // Iterate over all call instructions that are influenced by user input.
+        //     for (auto userInputCall : callInstToVarNames)
+        //     {
+        //         // Get the name of the function being called.
+        //         std::string calledFunctName = calledFunc.find(userInputCall.first) != calledFunc.end() ? calledFunc.at(userInputCall.first) : "unkown";
 
-                // Process this call instruction if it's a user input call.
-                if (auto asCallInst = dyn_cast<CallInst>(userInputCall.first))
-                {
-                    processSingleUserInputCall(asCallInst, userInputCall.second, calledFunctName);
-                }
-            }
-        }
+        //         // Process this call instruction if it's a user input call.
+        //         if (auto asCallInst = dyn_cast<CallInst>(userInputCall.first))
+        //         {
+        //             processSingleUserInputCall(asCallInst, userInputCall.second, calledFunctName);
+        //         }
+        //     }
+        // }
 
-        void processSingleUserInputCall(CallInst *asCallInst,
-                                        const std::vector<std::string> &variableValues,
-                                        const std::string &functionName)
-        {
-            // Output the detected seminal input and the function causing it.
-            writeToFile("\nSeminal input detected: ");
-            for (auto var : variableValues)
-            {
-                writeToFile(var + ", ");
-            }
-            writeToFile("\n");
-            writeToFile("user input using function " + functionName + " on line " + std::to_string(asCallInst->getDebugLoc()->getLine()) + "\n");
-        }
+        // void processSingleUserInputCall(CallInst *asCallInst,
+        //                                 const std::vector<std::string> &variableValues,
+        //                                 const std::string &functionName)
+        // {
+        //     // Output the detected seminal input and the function causing it.
+        //     writeToFile("\nSeminal input detected: ");
+        //     for (auto var : variableValues)
+        //     {
+        //         writeToFile(var + ", ");
+        //     }
+        //     writeToFile("\n");
+        //     writeToFile("user input using function " + functionName + " on line " + std::to_string(asCallInst->getDebugLoc()->getLine()) + "\n");
+        // }
 
         void writeToFile(std::string content)
         {
