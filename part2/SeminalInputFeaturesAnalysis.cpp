@@ -387,15 +387,18 @@ namespace
                     {
                         for (unsigned i = 0; i < Cmp->getNumOperands(); ++i)
                         {
-                            llvm::Value *Operand = Cmp->getOperand(i);
+                            if (i == 1)
+                            {
+                                llvm::Value *Operand = Cmp->getOperand(i);
 
-                            // Print operand directly
-                            llvm::errs() << "Operand " << i << ": ";
-                            // Operand->print(llvm::errs());
-                            // llvm::errs() << "\n";
-                            std::string operandName = variables[Operand];
+                                // Print operand directly
+                                llvm::errs() << "Operand " << i << ": ";
+                                // Operand->print(llvm::errs());
+                                // llvm::errs() << "\n";
+                                std::string operandName = variables[Operand];
 
-                            llvm::errs() << operandName << "\n";
+                                llvm::errs() << operandName << "\n";
+                            }
                         }
                         // errs() << "Exit Condition: " << *Cmp << "\n";
                         // if (Value *Operand = Cmp->getOperand(1))
