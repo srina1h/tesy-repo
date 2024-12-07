@@ -206,7 +206,7 @@ namespace
                 return;
             }
 
-            // check if the function is in the calledFuncMap, if its not, add it
+            // check if the function is in the dependentInstructions, if its not, add it
             if (dependentInstructions.find(CI) == dependentInstructions.end())
             {
                 dependentInstructions[CI] = std::set<Instruction *>();
@@ -216,13 +216,13 @@ namespace
             // Collect users of this call instruction recursively.
             defUseAnalysis(CI, dependentInstructions[CI]);
 
-            // Iterate over the arguments of the call instruction.
+            // Perform def-use analysis on the arguments of the function
             for (auto arg = CI->arg_begin(); arg != CI->arg_end(); ++arg)
             {
+                // only perform analysis on pointer arguments (others maybe call by value)
                 if (arg->get()->getType()->getTypeID() == Type::TypeID::PointerTyID)
                 {
                     auto argumentValue = arg->get();
-                    // Collect users of this argument recursively.
                     defUseAnalysis(argumentValue, dependentInstructions[CI]);
                 }
             }
@@ -375,7 +375,6 @@ extern "C" LLVM_ATTRIBUTE_WEAK PassPluginLibraryInfo llvmGetPassPluginInfo()
 {
     return {
         .APIVersion = LLVM_PLUGIN_API_VERSION,
-        .PluginName = "SeminalInputFeaturesAnalysis",
         .PluginVersion = "v0.1",
         .RegisterPassBuilderCallbacks = [](PassBuilder &PB)
         {
