@@ -62,7 +62,7 @@ namespace
             // Maps a call instruction to a set of instructions that are dependent on it.
             // This helps in tracking the flow and influence of function calls throughout the program.
 
-            std::list<BranchInst *> branches;
+            std::vector<BranchInst *> branches;
             // A list of all conditional branch instructions found during the analysis.
             // These are the branches that will be analyzed for user input dependencies.
 
@@ -288,7 +288,7 @@ namespace
         void analyzeAndPrintOutput(std::map<Value *, std::string> &valueToVariableNameMap,
                                    std::map<Value *, std::string> &valueToNameMap,
                                    std::map<Value *, std::set<Instruction *>> &callInstructionDependencyMap,
-                                   std::list<BranchInst *> &conditionalBranches)
+                                   std::vector<BranchInst *> &conditionalBranches)
         {
             // Iterate over each conditional branch instruction.
             for (auto branch : conditionalBranches)
@@ -307,24 +307,24 @@ namespace
             }
         }
 
-        std::list<Value *> getConditionalValues(BranchInst *branch)
+        std::vector<Value *> getConditionalValues(BranchInst *branch)
         {
-            std::list<Value *> condValues;
+            std::vector<Value *> condValues;
             // Get the condition of the branch.
             auto branchCondition = branch->getCondition();
             // If the condition is an integer comparison, collect the values involved in the comparison.
             if (isa<ICmpInst>(branchCondition))
             {
                 auto asICmpInst = dyn_cast<ICmpInst>(branchCondition);
-                condValues.emplace_back(asICmpInst);
-                condValues.emplace_back(asICmpInst->getOperand(0));
-                condValues.emplace_back(asICmpInst->getOperand(1));
+                condValues.push_back(asICmpInst);
+                condValues.push_back(asICmpInst->getOperand(0));
+                condValues.push_back(asICmpInst->getOperand(1));
             }
             return condValues;
         }
 
         std::map<Value *, std::vector<std::string>> mapCallInstToVarNames(
-            const std::list<Value *> &condValues,
+            const std::vector<Value *> &condValues,
             const std::map<Value *, std::set<Instruction *>> &callInstructionDependencyMap,
             const std::map<Value *, std::string> &valueToVariableNameMap)
         {
@@ -426,7 +426,7 @@ namespace
         }
 
         void processBranchInst(BranchInst *branchInst,
-                               std::list<BranchInst *> &conditionalBranches)
+                               std::vector<BranchInst *> &conditionalBranches)
         {
             // Retrieve the debug location of the branch instruction.
             DebugLoc DL = branchInst->getDebugLoc();
@@ -449,7 +449,7 @@ namespace
                 // Store the branch information in the map.
             }
             // Add the branch instruction to the list of conditional branches.
-            conditionalBranches.emplace_back(branchInst);
+            conditionalBranches.push_back(branchInst);
         }
     };
 }
