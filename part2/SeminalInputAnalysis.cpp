@@ -1,18 +1,23 @@
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+#include <list>
+#include <sstream>
+#include <fstream>
+
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/IR/Module.h"
-
-#include <fstream>
-#include <sstream>
-#include <set>
-#include <map>
-#include <list>
-#include <string>
 
 using namespace llvm;
 
@@ -53,7 +58,7 @@ namespace
             // Maps LLVM Values to their corresponding variable names as found in the source code.
             // This is used to associate LLVM's internal representation with human-readable variable names.
 
-            std::map<llvm::Value *, std::set<llvm::Instruction *>> dependentInstructions;
+            std::map<Value *, std::set<Instruction *>> dependentInstructions;
             // Maps a call instruction to a set of instructions that are dependent on it.
             // This helps in tracking the flow and influence of function calls throughout the program.
 
@@ -61,7 +66,7 @@ namespace
             // A list of all conditional branch instructions found during the analysis.
             // These are the branches that will be analyzed for user input dependencies.
 
-            std::map<llvm::Value *, std::string> calledFunc;
+            std::map<Value *, std::string> calledFunc;
             // Maps LLVM Values, specifically function call instructions, to their corresponding function names.
             // This aids in identifying which function calls are present in the analyzed code.
 
@@ -109,59 +114,6 @@ namespace
         }
 
     private:
-        // // Process debug information to map variables
-        // void processDbgInst(llvm::DbgDeclareInst *asDbgInst, std::map<Value *, std::string> &valueToVariableNameMap);
-
-        // // Recursively collect user instructions that depend on a value
-        // void collectUsersRecursive(Value *value, std::set<Instruction *> &userInstructions);
-
-        // // Process call instructions to track dependencies
-        // void processCallInstruction(llvm::CallInst *asCallInst, std::map<Value *, std::set<Instruction *>> &callInstructionDependencyMap,
-        //                             std::map<llvm::Value *, std::string> &valueToNameMap,
-        //                             std::map<Value *, std::string> &valueToVariableNameMap);
-
-        // // Clean function names from compiler-added information
-        // void cleanFunctionNameFromCompilerInfo(std::string &functionName);
-
-        // // Analyze the module and print output related to seminal input
-        // void analyzeAndPrintOutput(std::map<llvm::Value *, std::string> &valueToVariableNameMap,
-        //                            std::map<llvm::Value *, std::string> &valueToNameMap,
-        //                            std::map<llvm::Value *, std::set<llvm::Instruction *>> &callInstructionDependencyMap,
-        //                            std::list<llvm::BranchInst *> &conditionalBranches);
-
-        // // Get conditional values for a branch instruction
-        // std::list<llvm::Value *> getConditionalValues(llvm::BranchInst *branch);
-
-        // // Map call instructions to variable names influenced by user input
-        // std::map<llvm::Value *, std::vector<std::string>> mapCallInstToVarNames(
-        //     const std::list<llvm::Value *> &condValues,
-        //     const std::map<llvm::Value *, std::set<llvm::Instruction *>> &callInstructionDependencyMap,
-        //     const std::map<llvm::Value *, std::string> &valueToVariableNameMap);
-
-        // // Process calls related to user input
-        // void processUserInputCalls(const std::map<llvm::Value *, std::vector<std::string>> &callInstToVarNames,
-        //                            const std::map<llvm::Value *, std::string> &valueToNameMap);
-
-        // // Process a single user input call
-        // void processSingleUserInputCall(llvm::CallInst *asCallInst,
-        //                                 const std::vector<std::string> &variableValues,
-        //                                 const std::string &functionName);
-
-        // // Get function name from a call instruction
-        // std::string getFunctionName(llvm::Value *callInst, const std::map<llvm::Value *, std::string> &valueToNameMap);
-
-        // // Utility to join strings with a delimiter
-        // std::string join(const std::vector<std::string> &vec, const std::string &delim);
-
-        // // Get the line number from a basic block
-        // int getLine(llvm::BasicBlock &BB);
-
-        // // Process branch instructions to collect branch info and conditional branches
-        // void processBranchInst(llvm::BranchInst *branchInst,
-        //                        std::list<llvm::BranchInst *> &conditionalBranches);
-
-        // void writeToFile(std::string content);
-
         void processDbgInst(DbgDeclareInst *asDbgInst, std::map<Value *, std::string> &valueToVariableNameMap)
         {
             // Extract the variable name from the debug information.
@@ -257,7 +209,7 @@ namespace
 
         void processCallInstruction(CallInst *callInstruction,
                                     std::map<Value *, std::set<Instruction *>> &instructionDependencyMap,
-                                    std::map<llvm::Value *, std::string> &valueToNameMap,
+                                    std::map<Value *, std::string> &valueToNameMap,
                                     std::map<Value *, std::string> &valueToVariableNameMap)
         {
             // Extract the name of the function being called.
@@ -285,7 +237,7 @@ namespace
             // Iterate over the arguments of the call instruction.
             for (auto arg = callInstruction->arg_begin(); arg != callInstruction->arg_end(); ++arg)
             {
-                if (arg->get()->getType()->getTypeID() == llvm::Type::TypeID::PointerTyID)
+                if (arg->get()->getType()->getTypeID() == Type::TypeID::PointerTyID)
                 {
                     auto argumentValue = arg->get();
                     // Collect users of this argument recursively.
@@ -294,7 +246,7 @@ namespace
             }
 
             // Trace the instruction for variable name mapping.
-            llvm::Instruction *traceInstruction = callInstruction;
+            Instruction *traceInstruction = callInstruction;
 
             // Iterate over the value to variable name map.
             for (auto entry : valueToVariableNameMap)
@@ -333,10 +285,10 @@ namespace
             }
         }
 
-        void analyzeAndPrintOutput(std::map<llvm::Value *, std::string> &valueToVariableNameMap,
-                                   std::map<llvm::Value *, std::string> &valueToNameMap,
-                                   std::map<llvm::Value *, std::set<llvm::Instruction *>> &callInstructionDependencyMap,
-                                   std::list<llvm::BranchInst *> &conditionalBranches)
+        void analyzeAndPrintOutput(std::map<Value *, std::string> &valueToVariableNameMap,
+                                   std::map<Value *, std::string> &valueToNameMap,
+                                   std::map<Value *, std::set<Instruction *>> &callInstructionDependencyMap,
+                                   std::list<BranchInst *> &conditionalBranches)
         {
             // Iterate over each conditional branch instruction.
             for (auto branch : conditionalBranches)
@@ -349,21 +301,21 @@ namespace
                 // If there are any call instructions associated with this branch, process them.
                 if (!callInstToVarNames.empty())
                 {
-                    llvm::outs() << "\nLine " << branch->getDebugLoc()->getLine() << ": ";
+                    outs() << "\nLine " << branch->getDebugLoc()->getLine() << ": ";
                     processUserInputCalls(callInstToVarNames, valueToNameMap);
                 }
             }
         }
 
-        std::list<llvm::Value *> getConditionalValues(llvm::BranchInst *branch)
+        std::list<Value *> getConditionalValues(BranchInst *branch)
         {
-            std::list<llvm::Value *> condValues;
+            std::list<Value *> condValues;
             // Get the condition of the branch.
             auto branchCondition = branch->getCondition();
             // If the condition is an integer comparison, collect the values involved in the comparison.
-            if (llvm::isa<llvm::ICmpInst>(branchCondition))
+            if (isa<ICmpInst>(branchCondition))
             {
-                auto asICmpInst = llvm::dyn_cast<llvm::ICmpInst>(branchCondition);
+                auto asICmpInst = dyn_cast<ICmpInst>(branchCondition);
                 condValues.emplace_back(asICmpInst);
                 condValues.emplace_back(asICmpInst->getOperand(0));
                 condValues.emplace_back(asICmpInst->getOperand(1));
@@ -371,12 +323,12 @@ namespace
             return condValues;
         }
 
-        std::map<llvm::Value *, std::vector<std::string>> mapCallInstToVarNames(
-            const std::list<llvm::Value *> &condValues,
-            const std::map<llvm::Value *, std::set<llvm::Instruction *>> &callInstructionDependencyMap,
-            const std::map<llvm::Value *, std::string> &valueToVariableNameMap)
+        std::map<Value *, std::vector<std::string>> mapCallInstToVarNames(
+            const std::list<Value *> &condValues,
+            const std::map<Value *, std::set<Instruction *>> &callInstructionDependencyMap,
+            const std::map<Value *, std::string> &valueToVariableNameMap)
         {
-            std::map<llvm::Value *, std::vector<std::string>> callInstToVarNames;
+            std::map<Value *, std::vector<std::string>> callInstToVarNames;
             // Iterate over the call instruction dependency map.
             for (auto entry : callInstructionDependencyMap)
             {
@@ -396,8 +348,8 @@ namespace
             return callInstToVarNames;
         }
 
-        void processUserInputCalls(const std::map<llvm::Value *, std::vector<std::string>> &callInstToVarNames,
-                                   const std::map<llvm::Value *, std::string> &valueToNameMap)
+        void processUserInputCalls(const std::map<Value *, std::vector<std::string>> &callInstToVarNames,
+                                   const std::map<Value *, std::string> &valueToNameMap)
         {
             // Iterate over all call instructions that are influenced by user input.
             for (auto userInputCall : callInstToVarNames)
@@ -408,14 +360,14 @@ namespace
                 cleanFunctionNameFromCompilerInfo(calledFunctName);
 
                 // Process this call instruction if it's a user input call.
-                if (auto asCallInst = llvm::dyn_cast<llvm::CallInst>(userInputCall.first))
+                if (auto asCallInst = dyn_cast<CallInst>(userInputCall.first))
                 {
                     processSingleUserInputCall(asCallInst, userInputCall.second, calledFunctName);
                 }
             }
         }
 
-        void processSingleUserInputCall(llvm::CallInst *asCallInst,
+        void processSingleUserInputCall(CallInst *asCallInst,
                                         const std::vector<std::string> &variableValues,
                                         const std::string &functionName)
         {
@@ -423,12 +375,12 @@ namespace
             std::string varUseString = join(variableValues, ", ");
             // Output the detected seminal input and the function causing it.
             // write this to a file
-            llvm::outs() << "\n\tSeminal input detected: " << varUseString << "\n";
-            llvm::outs() << "\tuser input using function " << functionName << " on line " << asCallInst->getDebugLoc()->getLine() << "\n";
-            llvm::outs().flush();
+            outs() << "\n\tSeminal input detected: " << varUseString << "\n";
+            outs() << "\tuser input using function " << functionName << " on line " << asCallInst->getDebugLoc()->getLine() << "\n";
+            outs().flush();
         }
 
-        std::string getFunctionName(llvm::Value *callInst, const std::map<llvm::Value *, std::string> &valueToNameMap)
+        std::string getFunctionName(Value *callInst, const std::map<Value *, std::string> &valueToNameMap)
         {
             // Return the function name if found, otherwise return a placeholder.
             return valueToNameMap.find(callInst) != valueToNameMap.end() ? valueToNameMap.at(callInst) : "some function";
