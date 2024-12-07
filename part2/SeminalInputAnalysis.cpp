@@ -80,10 +80,11 @@ namespace
                         {
                             if (branchInst->isConditional())
                             {
-                                if (branchInst->getDebugLoc())
-                                {
-                                    branches.push_back(branchInst);
-                                }
+                                branches.push_back(branchInst);
+                                // if (branchInst->getDebugLoc())
+                                // {
+                                //     branches.push_back(branchInst);
+                                // }
                                 // processBranchInst(branchInst, branches);
                             }
                         }
@@ -427,33 +428,6 @@ namespace
                 }
             }
             return -1;
-        }
-
-        void processBranchInst(BranchInst *branchInst,
-                               std::vector<BranchInst *> &conditionalBranches)
-        {
-            // Retrieve the debug location of the branch instruction.
-            DebugLoc DL = branchInst->getDebugLoc();
-            // If no debug information is present, skip processing this instruction.
-            if (!DL)
-                return;
-
-            // Get the scope (e.g., file) in which the branch instruction is located.
-            DIScope *scope = cast<DIScope>(DL.getScope());
-            // Get the line number of the branch instruction.
-            int line = DL.getLine();
-
-            // Iterate over all successors of the branch instruction.
-            for (unsigned i = 0; i < branchInst->getNumSuccessors(); ++i)
-            {
-                BasicBlock *succ = branchInst->getSuccessor(i);
-                int targetLine = getLine(*succ);
-                // Create a unique identifier for the branch (using the name or address).
-                std::string brID = succ->hasName() ? succ->getName().str() : "br_" + std::to_string(reinterpret_cast<uintptr_t>(succ));
-                // Store the branch information in the map.
-            }
-            // Add the branch instruction to the list of conditional branches.
-            conditionalBranches.push_back(branchInst);
         }
     };
 }
