@@ -413,7 +413,7 @@ namespace
             // Open the file in append mode (after start)
             else
             {
-                file.open("lol.txt", std::fstream::app);
+                file.open(FILE_NAME, std::fstream::app);
             }
             file << content;
             file.close();
