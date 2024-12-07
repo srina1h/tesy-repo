@@ -57,7 +57,7 @@ namespace
             // Maps a call instruction to a set of instructions that are dependent on it.
             // This helps in tracking the flow and influence of function calls throughout the program.
 
-            std::list<BranchInst *> conditionalBranches;
+            std::list<BranchInst *> branches;
             // A list of all conditional branch instructions found during the analysis.
             // These are the branches that will be analyzed for user input dependencies.
 
@@ -71,22 +71,16 @@ namespace
                 {
                     for (Instruction &I : BB)
                     {
-                        if (auto *dbgValueInst = dyn_cast<DbgValueInst>(&I))
-                        {
-                            writeToFile("DbgValueInst\n");
-                            // processDbgValue(dbgValueInst, valueToVariableNameMap);
-                        }
                         if (auto *branchInst = dyn_cast<BranchInst>(&I))
                         {
                             if (branchInst->isConditional())
                             {
-                                processBranchInst(branchInst, conditionalBranches);
+                                processBranchInst(branchInst, branches);
                             }
                         }
 
                         if (auto *asDbgInst = dyn_cast<DbgDeclareInst>(&I))
                         {
-                            writeToFile("DbgDeclareInst\n");
                             processDbgInst(asDbgInst, valueToVariableNameMap);
                         }
                     }
@@ -109,39 +103,7 @@ namespace
                 }
             }
 
-            // write the maps valueToVariableNameMap, valueToNameMap, callInstructionDependencyMap, conditionalBranches to the file
-
-            // std::string va = "valueToVariableNameMap\n";
-            // // insert eh size of valueToVariableNameMap
-            // va += "Size" + std::to_string(valueToVariableNameMap.size()) + "\n";
-            // for (auto entry : valueToVariableNameMap)
-            // {
-            //     va += entry.second + " : " + std::to_string(reinterpret_cast<uintptr_t>(entry.first)) + "\n";
-            // }
-            // va += "valueToNameMap\n";
-            // for (auto entry : valueToNameMap)
-            // {
-            //     va += entry.second + " : " + std::to_string(reinterpret_cast<uintptr_t>(entry.first)) + "\n";
-            // }
-            // va += "callInstructionDependencyMap\n";
-            // for (auto entry : callInstructionDependencyMap)
-            // {
-            //     va += std::to_string(reinterpret_cast<uintptr_t>(entry.first)) + " : ";
-            //     for (auto ins : entry.second)
-            //     {
-            //         va += std::to_string(reinterpret_cast<uintptr_t>(ins)) + " ";
-            //     }
-            //     va += "\n";
-            // }
-            // va += "conditionalBranches\n";
-            // for (auto entry : conditionalBranches)
-            // {
-            //     va += std::to_string(reinterpret_cast<uintptr_t>(entry)) + "\n";
-            // }
-
-            // writeToFile(va);
-
-            analyzeAndPrintOutput(valueToVariableNameMap, valueToNameMap, callInstructionDependencyMap, conditionalBranches);
+            analyzeAndPrintOutput(valueToVariableNameMap, valueToNameMap, callInstructionDependencyMap, branches);
 
             return PreservedAnalyses::all();
         }
