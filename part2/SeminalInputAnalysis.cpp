@@ -253,7 +253,7 @@ namespace
                     {
                         for (auto dep : inst.second)
                         {
-                            if (dep == cmp)
+                            if (dep == op1 || dep == op2 || dep == cmp)
                             {
                                 if (variables.find(dep) != variables.end())
                                 {
