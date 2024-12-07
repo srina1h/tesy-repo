@@ -245,11 +245,11 @@ namespace
                         defUseAnalysis(CI->getOperand(0), dependents);
                     }
                     // recursively call the defUseAnalysis function on the operand of the binary instruction
-                    else if (BinaryOperator *BI = dyn_cast<BinaryOperator>(I))
-                    {
-                        defUseAnalysis(BI->getOperand(0), dependents);
-                        defUseAnalysis(BI->getOperand(1), dependents);
-                    }
+                    // else if (BinaryOperator *BI = dyn_cast<BinaryOperator>(I))
+                    // {
+                    //     defUseAnalysis(BI->getOperand(0), dependents);
+                    //     defUseAnalysis(BI->getOperand(1), dependents);
+                    // }
                     else
                     {
                         // recursively call defUseAnalysis
