@@ -212,11 +212,11 @@ namespace
             {
                 if (Instruction *I = dyn_cast<Instruction>(U))
                 {
-                    // // dont redo work
-                    // if (dependents.find(I) != dependents.end())
-                    // {
-                    //     return;
-                    // }
+                    // dont redo work
+                    if (dependents.find(I) != dependents.end())
+                    {
+                        return;
+                    }
 
                     // add this instruction to set of dependents
                     dependents.insert(I);
