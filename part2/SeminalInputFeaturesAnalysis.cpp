@@ -397,7 +397,7 @@ namespace
                                 // llvm::errs() << "\n";
                                 std::string operandName = variables[Operand];
 
-                                llvm::errs() << operandName << "\n";
+                                llvm::errs() << operandName << "at line no" << Cmp->getDebugLoc()->getLine() << "\n";
                             }
                         }
                         // errs() << "Exit Condition: " << *Cmp << "\n";
