@@ -385,10 +385,9 @@ namespace
                 {
                     if (auto *Cmp = dyn_cast<ICmpInst>(&I))
                     {
-                        errs() << "Exit Condition: " << *Cmp << "\n";
                         if (Value *Operand = Cmp->getOperand(1))
                         {
-                            errs() << "Influential Variable: " << Operand->getName() << "\n";
+                            writeToFile("\nInfluential Variable: " + Operand->getName().str() + "\n");
                         }
                     }
                 }
