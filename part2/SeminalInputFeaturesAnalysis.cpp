@@ -30,6 +30,13 @@ namespace
          * @param M The module to be analyzed
          * @param MAM The module analysis manager
          * @return PreservedAnalyses
+         *
+         * This function is the main function of the pass. It is called by the pass manager to run the analysis.
+         * The function performs the following tasks:
+         * 1. Find conditional branching and store them
+         * 2. Map the variables to their names (using debug information)
+         * 3. Find the ways in which the mapped variables are used
+         * 4. Perform the analysis and print the outputs to a file
          */
         PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
         {
@@ -140,6 +147,15 @@ namespace
         // List of user input functions to be monitored
         std::vector<std::string> libraryFunctions = {"getc", "fopen", "scanf", "fclose", "fread", "fwrite"};
 
+        /**
+         * @brief Perform def-use analysis on the given value(instruction) and find its dependent instructions
+         * @param v The instruction to be analyzed
+         * @param dependents The set of dependent instructions
+         *
+         * This function performs def-use analysis on the given instruction and finds its dependent instructions.
+         * It recursively calls itself on the dependent instructions to find their dependent instructions.
+         * Once we have the dependent instructions mapped, we are able to use to find the ways in which the variables are used.
+         */
         void defUseAnalysis(Value *v, std::set<Instruction *> &dependents)
         {
             // Check for value
@@ -183,6 +199,16 @@ namespace
             }
         }
 
+        /**
+         * @brief For call instructions that are user input functions, find the ways in which the mapped variables are used
+         * @param CI The call instruction to be analyzed
+         *
+         * This function performs the following tasks:
+         * 1. Check if the function is among the library functions
+         * 2. Find the dependent instructions of the call instruction
+         * 3. Perform def-use analysis on the arguments of the function that is being called (if call by reference)
+         * 4. Trace the instruction for variable name mapping
+         */
         void checkCallInst(CallInst *CI)
         {
             std::string FuncName = CI->getCalledFunction()->getName().str();
@@ -200,7 +226,7 @@ namespace
                 calledFunc[CI] = FuncName;
             }
 
-            // Collect users of this call instruction recursively.
+            // Perform def-use analysis to find the dependent instructions
             defUseAnalysis(CI, dependentInstructions[CI]);
 
             // Perform def-use analysis on the arguments of the function
@@ -214,13 +240,15 @@ namespace
                 }
             }
 
-            // Trace the instruction for variable name mapping.
             Instruction *nextInst = CI;
 
-            // Iterate over the value to variable name map.
+            /* Go through previously mapped variables and check if they are instructions
+            that are dependent on the current call instruction. if so, update the variables map
+            to reflect that the current call instuction is responsible for the use of the variable
+            */
+
             for (auto var : variables)
             {
-                // Check for Store instructions and update mapping.
                 if (auto SI = dyn_cast<StoreInst>(var.first))
                 {
                     if (SI->getOperand(0) == nextInst)
@@ -229,7 +257,6 @@ namespace
                         break;
                     }
                 }
-                // Check for Cast instructions and update the trace instruction.
                 else if (auto CAI = dyn_cast<CastInst>(var.first))
                 {
                     if (CAI->getOperand(0) == CI)
@@ -290,95 +317,6 @@ namespace
                 }
             }
         }
-
-        // void perform_Analysis()
-        // {
-        //     // Iterate over each conditional branch instruction.
-        //     for (auto branch : branches)
-        //     {
-        //         // Retrieve the values involved in the condition of the branch.
-        //         auto condValues = getConditionalValues(branch);
-        //         // Map call instructions to variable names based on these conditional values.
-        //         auto callInstToVarNames = mapCallInstToVarNames(condValues);
-
-        //         // If there are any call instructions associated with this branch, process them.
-        //         if (!callInstToVarNames.empty())
-        //         {
-        //             writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
-        //             processUserInputCalls(callInstToVarNames, calledFunc);
-        //         }
-        //     }
-        // }
-
-        // std::vector<Value *> getConditionalValues(BranchInst *branch)
-        // {
-        //     std::vector<Value *> condValues;
-        //     // Get the condition of the branch.
-        //     auto branchCondition = branch->getCondition();
-        //     // If the condition is an integer comparison, collect the values involved in the comparison.
-        //     if (isa<ICmpInst>(branchCondition))
-        //     {
-        //         auto asICmpInst = dyn_cast<ICmpInst>(branchCondition);
-        //         condValues.push_back(asICmpInst);
-        //         condValues.push_back(asICmpInst->getOperand(0));
-        //         condValues.push_back(asICmpInst->getOperand(1));
-        //     }
-        //     return condValues;
-        // }
-
-        // std::map<Value *, std::vector<std::string>> mapCallInstToVarNames(
-        //     const std::vector<Value *> &condValues)
-        // {
-        //     std::map<Value *, std::vector<std::string>> callInstToVarNames;
-        //     // Iterate over the call instruction dependency map.
-        //     for (auto entry : dependentInstructions)
-        //     {
-        //         // For each instruction that uses a value involved in a conditional branch.
-        //         for (auto use : entry.second)
-        //         {
-        //             if (std::find(condValues.begin(), condValues.end(), use) != condValues.end())
-        //             {
-        //                 // If a variable name is associated with the use, add it to the map.
-        //                 if (variables.find(use) != variables.end())
-        //                 {
-        //                     callInstToVarNames[entry.first].push_back(variables.at(use));
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     return callInstToVarNames;
-        // }
-
-        // void processUserInputCalls(const std::map<Value *, std::vector<std::string>> &callInstToVarNames,
-        //                            const std::map<Value *, std::string> &calledFunc)
-        // {
-        //     // Iterate over all call instructions that are influenced by user input.
-        //     for (auto userInputCall : callInstToVarNames)
-        //     {
-        //         // Get the name of the function being called.
-        //         std::string calledFunctName = calledFunc.find(userInputCall.first) != calledFunc.end() ? calledFunc.at(userInputCall.first) : "unkown";
-
-        //         // Process this call instruction if it's a user input call.
-        //         if (auto asCallInst = dyn_cast<CallInst>(userInputCall.first))
-        //         {
-        //             processSingleUserInputCall(asCallInst, userInputCall.second, calledFunctName);
-        //         }
-        //     }
-        // }
-
-        // void processSingleUserInputCall(CallInst *asCallInst,
-        //                                 const std::vector<std::string> &variableValues,
-        //                                 const std::string &functionName)
-        // {
-        //     // Output the detected seminal input and the function causing it.
-        //     writeToFile("\nSeminal input detected: ");
-        //     for (auto var : variableValues)
-        //     {
-        //         writeToFile(var + ", ");
-        //     }
-        //     writeToFile("\n");
-        //     writeToFile("user input using function " + functionName + " on line " + std::to_string(asCallInst->getDebugLoc()->getLine()) + "\n");
-        // }
 
         void writeToFile(std::string content)
         {
