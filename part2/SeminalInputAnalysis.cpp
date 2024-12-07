@@ -381,11 +381,18 @@ namespace
 
         void writeToFile(std::string content)
         {
-            // Write the content to a file lol.txt, if not there, create one
+            // Write the content to a file lol.txt, if not there, create one, if it alreeady exists delete it
+
             std::ofstream file;
-            file.open("lol.txt", std::fstream::app);
+            file.open("lol.txt", std::fstream::out | std::fstream::trunc);
             file << content;
             file.close();
+
+            // std::ofstream file;
+            // file.open("lol.txt", std::fstream::app);
+
+            // file << content;
+            // file.close();
         }
     };
 }
