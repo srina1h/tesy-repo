@@ -419,7 +419,7 @@ namespace
 
             for (auto var : variablesInLine)
             {
-                writeToFile("\nInfluential loop operand used" + var.first + " in Lines:");
+                writeToFile("\nInfluential loop operand " + var.first + " used in Lines:");
                 bool first = true;
                 for (auto line : var.second)
                 {
