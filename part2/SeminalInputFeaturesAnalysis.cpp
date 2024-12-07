@@ -385,13 +385,22 @@ namespace
                 {
                     if (auto *Cmp = dyn_cast<ICmpInst>(&I))
                     {
-                        errs() << "Exit Condition: " << *Cmp << "\n";
-                        if (Value *Operand = Cmp->getOperand(1))
+                        for (unsigned i = 0; i < Cmp->getNumOperands(); ++i)
                         {
-                            StringRef operandName = Operand->getName();
-                            errs() << "Influential Variable: " << operandName << "\n";
-                            writeToFile("\nInfluential Variable: " + operandName.str() + "\n");
+                            llvm::Value *Operand = Cmp->getOperand(i);
+
+                            // Print operand directly
+                            llvm::errs() << "Operand " << i << ": ";
+                            Operand->print(llvm::errs());
+                            llvm::errs() << "\n";
                         }
+                        // errs() << "Exit Condition: " << *Cmp << "\n";
+                        // if (Value *Operand = Cmp->getOperand(1))
+                        // {
+                        //     StringRef operandName = Operand->getName();
+                        //     errs() << "Influential Variable: " << operandName << "\n";
+                        //     writeToFile("\nInfluential Variable: " + operandName.str() + "\n");
+                        // }
                     }
                 }
             }
