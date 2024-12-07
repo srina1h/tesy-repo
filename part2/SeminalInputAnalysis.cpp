@@ -2,7 +2,6 @@
 #include <vector>
 #include <map>
 #include <set>
-#include <list>
 #include <sstream>
 #include <fstream>
 
@@ -23,24 +22,6 @@ using namespace llvm;
 
 namespace
 {
-    // List of user input functions to be monitored
-    std::vector<std::string> userInputFunctions = {
-        "fopen",
-        "freopen",
-        "fscanf",
-        "scanf",
-        "sscanf",
-        "fgetc",
-        "fgets",
-        "getc",
-        "getchar",
-        "gets",
-        "get_s",
-        "fread",
-        "fgetwc",
-        "getwc",
-    };
-
     class SeminalInputAnalysis : public PassInfoMixin<SeminalInputAnalysis>
     {
     public:
@@ -62,17 +43,50 @@ namespace
                 {
                     for (Instruction &I : BB)
                     {
-                        if (auto *branchInst = dyn_cast<BranchInst>(&I))
+                        if (auto *BI = dyn_cast<BranchInst>(&I))
                         {
-                            if (branchInst->isConditional())
+                            if (BI->isConditional())
                             {
-                                branches.push_back(branchInst);
+                                branches.push_back(BI);
                             }
                         }
 
-                        if (auto *asDbgInst = dyn_cast<DbgDeclareInst>(&I))
+                        if (auto *DI = dyn_cast<DbgDeclareInst>(&I))
                         {
-                            processDbgInst(asDbgInst);
+                            std::string varName = DI->getVariable()->getName().str();
+
+                            // Map the address of the variable to its name.
+                            variables[DI->getAddress()] = varName;
+
+                            // Collect all instructions that use this variable.
+                            std::set<Instruction *> dependents;
+                            defUseAnalysis(DI->getAddress(), dependents);
+
+                            // Iterate over all users of the variable.
+                            for (auto dep : dependents)
+                            {
+                                // If the user is a Load instruction, map the instruction to the variable name.
+                                if (auto LI = dyn_cast<LoadInst>(dep))
+                                {
+                                    if (LI->getOperand(0) == DI->getAddress())
+                                    {
+                                        variables[LI] = varName;
+                                    }
+                                }
+                                // Similarly, for Store instructions, map the instruction to the variable name.
+                                else if (auto SI = dyn_cast<StoreInst>(dep))
+                                {
+                                    if (SI->getOperand(1) == DI->getAddress())
+                                    {
+                                        variables[SI] = varName;
+                                    }
+                                }
+                                // For Unary instructions, directly map the instruction to the variable name.
+                                else if (auto unaryInst = dyn_cast<UnaryInstruction>(dep))
+                                {
+                                    variables[unaryInst] = varName;
+                                }
+                            }
                         }
                     }
                 }
@@ -86,11 +100,11 @@ namespace
                 {
                     for (Instruction &I : BB)
                     {
-                        if (auto asCallInst = dyn_cast<CallInst>(&I))
+                        if (auto CI = dyn_cast<CallInst>(&I))
                         {
-                            if (asCallInst->getCalledFunction())
+                            if (CI->getCalledFunction())
                             {
-                                processCallInstruction(asCallInst);
+                                processCallInstruction(CI);
                             }
                         }
                     }
@@ -103,66 +117,44 @@ namespace
         }
 
     private:
-        /*
-        Define the variables that will be used throughout the analysis.
-        */
+        /**
+         * @brief Define the variables that will be used throughout the analysis.
+         *
+         * The variables are:
+         * 1. flag_for_file: A flag to check if the file has been created or not.
+         * 2. variables: Stores the variables mapped to their names
+         * 3. dependentInstructions: Mapped instructions to their dependent instructions.
+         * 4. branches: All conditional branches are stored here
+         * 5. calledFunc: Any function that may be called by user input functions
+         */
 
-        // Flag to check if file is created or not
         bool flag_for_file = false;
 
         std::map<Value *, std::string> variables;
-        // Maps LLVM Values to their corresponding variable names as found in the source code.
-        // This is used to associate LLVM's internal representation with human-readable variable names.
-
         std::map<Value *, std::set<Instruction *>> dependentInstructions;
-        // Maps a call instruction to a set of instructions that are dependent on it.
-        // This helps in tracking the flow and influence of function calls throughout the program.
-
         std::vector<BranchInst *> branches;
-        // A list of all conditional branch instructions found during the analysis.
-        // These are the branches that will be analyzed for user input dependencies.
-
         std::map<Value *, std::string> calledFunc;
-        // Maps LLVM Values, specifically function call instructions, to their corresponding function names.
-        // This aids in identifying which function calls are present in the analyzed code.
+        // List of user input functions to be monitored
+        std::vector<std::string> userInputFunctions = {
+            "fopen",
+            "freopen",
+            "fscanf",
+            "scanf",
+            "sscanf",
+            "fgetc",
+            "fgets",
+            "getc",
+            "getchar",
+            "gets",
+            "get_s",
+            "fread",
+            "fgetwc",
+            "getwc",
+        };
 
-        void processDbgInst(DbgDeclareInst *asDbgInst)
+        void processDbgInst(DbgDeclareInst *DI)
         {
             // Extract the variable name from the debug information.
-            std::string variableName = asDbgInst->getVariable()->getName().str();
-
-            // Map the address of the variable to its name.
-            variables[asDbgInst->getAddress()] = variableName;
-
-            // Collect all instructions that use this variable.
-            std::set<Instruction *> varUsers;
-            defUseAnalysis(asDbgInst->getAddress(), varUsers);
-
-            // Iterate over all users of the variable.
-            for (auto user : varUsers)
-            {
-                // If the user is a Load instruction, map the instruction to the variable name.
-                if (auto loadInst = dyn_cast<LoadInst>(user))
-                {
-                    if (loadInst->getOperand(0) == asDbgInst->getAddress())
-                    {
-                        variables[loadInst] = variableName;
-                    }
-                }
-                // Similarly, for Store instructions, map the instruction to the variable name.
-                else if (auto storeInst = dyn_cast<StoreInst>(user))
-                {
-                    if (storeInst->getOperand(1) == asDbgInst->getAddress())
-                    {
-                        variables[storeInst] = variableName;
-                    }
-                }
-                // For Unary instructions, directly map the instruction to the variable name.
-                else if (auto unaryInst = dyn_cast<UnaryInstruction>(user))
-                {
-                    variables[unaryInst] = variableName;
-                }
-            }
         }
 
         void defUseAnalysis(Value *value, std::set<Instruction *> &dependents)
@@ -174,30 +166,30 @@ namespace
             }
 
             // Iterate over all users of the value.
-            for (User *user : value->users())
+            for (User *U : value->users())
             {
                 // Cast the user to an Instruction, if possible.
-                if (Instruction *inst = dyn_cast<Instruction>(user))
+                if (Instruction *I = dyn_cast<Instruction>(U))
                 {
                     // Avoid re-processing an instruction already in the set.
-                    if (dependents.find(inst) != dependents.end())
+                    if (dependents.find(I) != dependents.end())
                     {
                         return;
                     }
 
                     // Add the instruction to the set of users.
-                    dependents.insert(inst);
+                    dependents.insert(I);
 
                     // Special handling for Store instructions: recursively collect users of the pointer operand.
-                    if (isa<StoreInst>(inst))
+                    if (isa<StoreInst>(I))
                     {
-                        auto storeInst = dyn_cast<StoreInst>(inst);
+                        auto storeInst = dyn_cast<StoreInst>(I);
                         defUseAnalysis(storeInst->getPointerOperand(), dependents);
                     }
                     // Special handling for Return instructions: if it returns a value, recursively collect users.
-                    else if (isa<ReturnInst>(inst))
+                    else if (isa<ReturnInst>(I))
                     {
-                        auto asRetInstruction = dyn_cast<ReturnInst>(inst);
+                        auto asRetInstruction = dyn_cast<ReturnInst>(I);
                         if (asRetInstruction->getReturnValue())
                         {
                             defUseAnalysis(asRetInstruction->getFunction(), dependents);
@@ -205,7 +197,7 @@ namespace
                     }
 
                     // Recursively collect users of this instruction.
-                    defUseAnalysis(inst, dependents);
+                    defUseAnalysis(I, dependents);
                 }
             }
         }
