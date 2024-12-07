@@ -222,7 +222,10 @@ namespace
                     dependents.insert(I);
 
                     /* we choose to only perform recursive analysis on store and return
-                    instructions as they are the only ones that can change the value of a variable.
+                    instructions as they are the only ones that can change the value of a variable
+
+                    If we choose to explore other instructions, our analyzed variables may be incorrect
+                    as we reutrn when we find a dependent instruction that is already analyzed
                     */
 
                     if (StoreInst *SI = dyn_cast<StoreInst>(I))
