@@ -64,26 +64,26 @@ namespace
                             // Iterate over all users of the variable.
                             for (auto dep : dependents)
                             {
-                                // If the user is a Load instruction, map the instruction to the variable name.
+                                // if load instruction uses this var in an operand, store the variable name with its address as key
                                 if (auto LI = dyn_cast<LoadInst>(dep))
                                 {
-                                    if (LI->getOperand(0) == DI->getAddress())
+                                    if (LI->getPointerOperand() == DI->getAddress())
                                     {
                                         variables[LI] = varName;
                                     }
                                 }
-                                // Similarly, for Store instructions, map the instruction to the variable name.
+                                else if (auto UI = dyn_cast<UnaryInstruction>(dep))
+                                {
+                                    // unary only has 1 operand
+                                    variables[UI] = varName;
+                                }
                                 else if (auto SI = dyn_cast<StoreInst>(dep))
                                 {
-                                    if (SI->getOperand(1) == DI->getAddress())
+                                    // If store instruction uses this var in an operand, store the variable name with its address as key
+                                    if (SI->getValueOperand() == DI->getAddress())
                                     {
                                         variables[SI] = varName;
                                     }
-                                }
-                                // For Unary instructions, directly map the instruction to the variable name.
-                                else if (auto unaryInst = dyn_cast<UnaryInstruction>(dep))
-                                {
-                                    variables[unaryInst] = varName;
                                 }
                             }
                         }
