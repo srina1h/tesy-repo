@@ -27,13 +27,10 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 
 using namespace llvm;
@@ -58,9 +55,9 @@ namespace
          */
         PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
         {
-            writeToFile("\n==================================\n");
+            writeToFile("\n=====================================\n");
             writeToFile("Seminal Input Features Analysis Pass:\n");
-            writeToFile("====================================\n");
+            writeToFile("=====================================\n");
 
             // OBJECTIVE: Find conditional branching
 
@@ -382,9 +379,19 @@ namespace
             }
         }
 
+        /**
+         * @brief Analyze a loop and find the variables that are influential in the loop condition
+         * @param L The loop to be analyzed
+         *
+         * This function analyzes the loop and finds the variables that are influential in the loop condition.
+         * It performs the following tasks:
+         * 1. Find the exit blocks of the loop
+         * 2. Analyze the exit conditions to see the variables that are influential in the loop condition
+         * 3. Record the variables that are influential in the loop condition
+         */
         void analyzeLoop(Loop *L)
         {
-            SmallVector<llvm::BasicBlock *, 8> ExitBlocks;
+            SmallVector<BasicBlock *, 8> ExitBlocks;
             L->getExitBlocks(ExitBlocks);
 
             std::map<std::string, std::set<std::string>> variablesInLine;
@@ -400,13 +407,9 @@ namespace
                         {
                             if (i == 1 && variables.find(Cmp->getOperand(i)) != variables.end())
                             {
-                                llvm::Value *Operand = Cmp->getOperand(i);
-
-                                // writeToFile("\nInfluential loop Operand: ");
+                                Value *Operand = Cmp->getOperand(i);
 
                                 std::string operandName = variables[Operand];
-
-                                // writeToFile(operandName + " at Line # " + std::to_string(Cmp->getDebugLoc()->getLine()) + "\n");
 
                                 variablesInLine[operandName].insert(std::to_string(Cmp->getDebugLoc()->getLine()));
                             }
