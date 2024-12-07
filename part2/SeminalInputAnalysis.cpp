@@ -101,7 +101,10 @@ namespace
                     {
                         if (auto CI = dyn_cast<CallInst>(&I))
                         {
-                            checkCallInst(CI);
+                            if (CI->getCalledFunction())
+                            {
+                                processCallInstruction(CI);
+                            }
                         }
                     }
                 }
@@ -193,63 +196,62 @@ namespace
             }
         }
 
-        void checkCallInst(CallInst *CI)
+        void processCallInstruction(CallInst *callInstruction)
         {
-            if (CI->getCalledFunction())
-            {
-                return;
-            }
             // Extract the name of the function being called.
-            std::string funcName = CI->getCalledFunction()->getName().str();
+            std::string calledFunctionName = callInstruction->getCalledFunction()->getName().str();
+            // Clean any compiler-specific naming additions from the function name.
+            // cleanFunctionNameFromCompilerInfo(calledFunctionName);
 
             // Check if the called function is part of the user input functions list.
-            if (std::find(userInputFunctions.begin(), userInputFunctions.end(), funcName) == userInputFunctions.end())
+            if (std::find(userInputFunctions.begin(), userInputFunctions.end(), calledFunctionName) == userInputFunctions.end())
             {
+                // If not, return and do not process further.
                 return;
             }
 
             // Initialize the entry in the instruction dependency map for this call instruction if it doesn't exist.
-            if (dependentInstructions.find(CI) == dependentInstructions.end())
+            if (dependentInstructions.find(callInstruction) == dependentInstructions.end())
             {
-                dependentInstructions[CI] = {};
-                calledFunc[CI] = funcName;
+                dependentInstructions[callInstruction] = {};
+                calledFunc[callInstruction] = calledFunctionName;
             }
 
             // Collect users of this call instruction recursively.
-            defUseAnalysis(CI, dependentInstructions[CI]);
+            defUseAnalysis(callInstruction, dependentInstructions[callInstruction]);
 
             // Iterate over the arguments of the call instruction.
-            for (auto arg = CI->arg_begin(); arg != CI->arg_end(); ++arg)
+            for (auto arg = callInstruction->arg_begin(); arg != callInstruction->arg_end(); ++arg)
             {
                 if (arg->get()->getType()->getTypeID() == Type::TypeID::PointerTyID)
                 {
                     auto argumentValue = arg->get();
                     // Collect users of this argument recursively.
-                    defUseAnalysis(argumentValue, dependentInstructions[CI]);
+                    defUseAnalysis(argumentValue, dependentInstructions[callInstruction]);
                 }
             }
 
             // Trace the instruction for variable name mapping.
-            Instruction *nextInst = CI;
+            Instruction *traceInstruction = callInstruction;
 
             // Iterate over the value to variable name map.
-            for (auto var : variables)
+            for (auto entry : variables)
             {
                 // Check for Store instructions and update mapping.
-                if (auto SI = dyn_cast<StoreInst>(var.first))
+                if (auto storeInstruction = dyn_cast<StoreInst>(entry.first))
                 {
-                    if (SI->getOperand(0) == nextInst)
+                    if (storeInstruction->getOperand(0) == traceInstruction)
                     {
-                        variables[CI] = variables[var.first];
+                        variables[callInstruction] = variables[entry.first];
                         break;
                     }
                 }
                 // Check for Cast instructions and update the trace instruction.
-                else if (auto CAI = dyn_cast<CastInst>(var.first))
+                else if (auto asCastInstruction = dyn_cast<CastInst>(entry.first))
                 {
-                    if (CAI->getOperand(0) == CI)
+                    if (asCastInstruction->getOperand(0) == callInstruction)
                     {
-                        nextInst = CAI;
+                        traceInstruction = asCastInstruction;
                     }
                 }
             }
