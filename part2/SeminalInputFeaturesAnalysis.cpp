@@ -391,11 +391,11 @@ namespace
                             {
                                 llvm::Value *Operand = Cmp->getOperand(i);
 
-                                llvm::errs() << "Operand " << i << ": ";
+                                writeToFile("\nInfluential loop Operand: ");
 
                                 std::string operandName = variables[Operand];
 
-                                llvm::errs() << operandName << "at line no" << Cmp->getDebugLoc()->getLine() << "\n";
+                                writeToFile(operandName + " at Line # " + std::to_string(Cmp->getDebugLoc()->getLine()) + "\n");
                             }
                         }
                         // errs() << "Exit Condition: " << *Cmp << "\n";
