@@ -114,6 +114,8 @@ namespace
         }
 
     private:
+        bool flag_for_file = false;
+
         void processDbgInst(DbgDeclareInst *asDbgInst, std::map<Value *, std::string> &valueToVariableNameMap)
         {
             // Extract the variable name from the debug information.
@@ -384,7 +386,15 @@ namespace
             // Write the content to a file lol.txt, if not there, create one, if it alreeady exists delete it
 
             std::ofstream file;
-            file.open("lol.txt", std::fstream::out | std::fstream::trunc);
+            if (!flag_for_file)
+            {
+                file.open("lol.txt", std::fstream::out | std::fstream::trunc);
+                flag_for_file = true;
+            }
+            else
+            {
+                file.open("lol.txt", std::fstream::app);
+            }
             file << content;
             file.close();
 
