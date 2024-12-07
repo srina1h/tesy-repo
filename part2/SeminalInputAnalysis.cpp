@@ -134,7 +134,7 @@ namespace
         std::vector<BranchInst *> branches;
         std::map<Value *, std::string> calledFunc;
         // List of user input functions to be monitored
-        std::vector<std::string> userInputFunctions = {
+        std::vector<std::string> libraryFunctions = {
             "fopen",
             "freopen",
             "fscanf",
@@ -153,40 +153,36 @@ namespace
 
         void defUseAnalysis(Value *value, std::set<Instruction *> &dependents)
         {
-            // Check if the value is null to prevent processing an invalid value.
+            // Check for value
             if (!value)
             {
                 return;
             }
 
-            // Iterate over all users of the value.
             for (User *U : value->users())
             {
-                // Cast the user to an Instruction, if possible.
                 if (Instruction *I = dyn_cast<Instruction>(U))
                 {
-                    // Avoid re-processing an instruction already in the set.
+                    // dont redo work
                     if (dependents.find(I) != dependents.end())
                     {
                         return;
                     }
 
-                    // Add the instruction to the set of users.
+                    // add this instruction to set of dependents
                     dependents.insert(I);
 
-                    // Special handling for Store instructions: recursively collect users of the pointer operand.
-                    if (isa<StoreInst>(I))
+                    // recursively call the defUseAnalysis function on the pointer operand of the store instruction
+                    if (StoreInst *SI = dyn_cast<StoreInst>(I))
                     {
-                        auto storeInst = dyn_cast<StoreInst>(I);
-                        defUseAnalysis(storeInst->getPointerOperand(), dependents);
+                        defUseAnalysis(SI->getPointerOperand(), dependents);
                     }
-                    // Special handling for Return instructions: if it returns a value, recursively collect users.
-                    else if (isa<ReturnInst>(I))
+                    // recursively call the defUseAnalysis function on the return value of the return instruction
+                    else if (ReturnInst *RI = dyn_cast<ReturnInst>(I))
                     {
-                        auto asRetInstruction = dyn_cast<ReturnInst>(I);
-                        if (asRetInstruction->getReturnValue())
+                        if (RI->getReturnValue())
                         {
-                            defUseAnalysis(asRetInstruction->getFunction(), dependents);
+                            defUseAnalysis(RI->getFunction(), dependents);
                         }
                     }
 
@@ -201,7 +197,7 @@ namespace
             std::string FuncName = CI->getCalledFunction()->getName().str();
 
             // check if function among library functions and if it is, return
-            if (std::find(userInputFunctions.begin(), userInputFunctions.end(), FuncName) == userInputFunctions.end())
+            if (std::find(libraryFunctions.begin(), libraryFunctions.end(), FuncName) == libraryFunctions.end())
             {
                 return;
             }
@@ -319,9 +315,7 @@ namespace
             for (auto userInputCall : callInstToVarNames)
             {
                 // Get the name of the function being called.
-                auto calledFunctName = getFunctionName(userInputCall.first);
-                // Clean any compiler-specific information from the function name.
-                // cleanFunctionNameFromCompilerInfo(calledFunctName);
+                std::string calledFunctName = calledFunc.find(userInputCall.first) != calledFunc.end() ? calledFunc.at(userInputCall.first) : "unkown";
 
                 // Process this call instruction if it's a user input call.
                 if (auto asCallInst = dyn_cast<CallInst>(userInputCall.first))
@@ -343,12 +337,6 @@ namespace
             }
             writeToFile("\n");
             writeToFile("user input using function " + functionName + " on line " + std::to_string(asCallInst->getDebugLoc()->getLine()) + "\n");
-        }
-
-        std::string getFunctionName(Value *callInst)
-        {
-            // Return the function name if found, otherwise return a placeholder.
-            return calledFunc.find(callInst) != calledFunc.end() ? calledFunc.at(callInst) : "some function";
         }
 
         void writeToFile(std::string content)
