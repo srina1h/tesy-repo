@@ -198,23 +198,19 @@ namespace
 
         void processCallInstruction(CallInst *CI)
         {
-            // Extract the name of the function being called.
-            std::string calledFunctionName = CI->getCalledFunction()->getName().str();
-            // Clean any compiler-specific naming additions from the function name.
-            // cleanFunctionNameFromCompilerInfo(calledFunctionName);
+            std::string FuncName = CI->getCalledFunction()->getName().str();
 
-            // Check if the called function is part of the user input functions list.
-            if (std::find(userInputFunctions.begin(), userInputFunctions.end(), calledFunctionName) == userInputFunctions.end())
+            // check if function among library functions and if it is, return
+            if (std::find(userInputFunctions.begin(), userInputFunctions.end(), FuncName) == userInputFunctions.end())
             {
-                // If not, return and do not process further.
                 return;
             }
 
-            // Initialize the entry in the instruction dependency map for this call instruction if it doesn't exist.
+            // check if the function is in the calledFuncMap, if its not, add it
             if (dependentInstructions.find(CI) == dependentInstructions.end())
             {
-                dependentInstructions[CI] = {};
-                calledFunc[CI] = calledFunctionName;
+                dependentInstructions[CI] = std::set<Instruction *>();
+                calledFunc[CI] = FuncName;
             }
 
             // Collect users of this call instruction recursively.
