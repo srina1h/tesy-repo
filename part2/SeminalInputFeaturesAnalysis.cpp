@@ -376,8 +376,10 @@ namespace
 
         void analyzeLoop(Loop *L)
         {
+            SmallVector<llvm::BasicBlock *, 8> ExitBlocks;
+            L->getExitBlocks(ExitBlocks);
             // Analyze exit conditions
-            for (BasicBlock *ExitBlock : L->getExitBlocks())
+            for (BasicBlock *ExitBlock : ExitBlocks)
             {
                 for (auto &I : *ExitBlock)
                 {
