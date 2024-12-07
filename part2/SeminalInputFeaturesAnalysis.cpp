@@ -234,6 +234,22 @@ namespace
                             defUseAnalysis(RI->getFunction(), dependents);
                         }
                     }
+                    // recursively call the defUseAnalysis function on the operand of the load instruction
+                    else if (LoadInst *LI = dyn_cast<LoadInst>(I))
+                    {
+                        defUseAnalysis(LI->getPointerOperand(), dependents);
+                    }
+                    // recursively call the defUseAnalysis function on the operand of the cast instruction
+                    else if (CastInst *CI = dyn_cast<CastInst>(I))
+                    {
+                        defUseAnalysis(CI->getOperand(0), dependents);
+                    }
+                    // recursively call the defUseAnalysis function on the operand of the binary instruction
+                    else if (BinaryOperator *BI = dyn_cast<BinaryOperator>(I))
+                    {
+                        defUseAnalysis(BI->getOperand(0), dependents);
+                        defUseAnalysis(BI->getOperand(1), dependents);
+                    }
                     else
                     {
                         // recursively call defUseAnalysis
