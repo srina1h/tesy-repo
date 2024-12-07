@@ -352,7 +352,7 @@ namespace
 
                     if (branch_call_mapping.size() > 0)
                     {
-                        writeToFile("\nLine Number" + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
+                        writeToFile("\nLine # " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
                         writeToFile("\nSeminal Input variable: ");
                         bool first = true;
 
@@ -364,6 +364,7 @@ namespace
                                 {
                                     writeToFile(var + ", ");
                                 }
+                                writeToFile("\n");
                                 first = false;
                             }
 
@@ -371,13 +372,7 @@ namespace
 
                             if (auto CI = dyn_cast<CallInst>(call.first))
                             {
-                                // writeToFile("\nSeminal Input: ");
-                                // for (auto var : call.second)
-                                // {
-                                //     writeToFile(var + ", ");
-                                // }
-                                writeToFile("\n");
-                                writeToFile("used at Function-" + funcName + " on Line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
+                                writeToFile("used at Function\"" + funcName + "\" on Line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
                             }
                         }
                     }
