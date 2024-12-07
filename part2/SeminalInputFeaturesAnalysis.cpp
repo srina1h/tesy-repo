@@ -1,3 +1,18 @@
+/**
+ * @file SeminalInputFeaturesAnalysis.cpp
+ * @brief This file contains the implementation of the SeminalInputFeaturesAnalysis pass
+ * @author Srinath Srinivasan (ssrini27@ncsu.edu)
+ * @bug No known bugs
+ * @attention Please make sure FILE_NAME is set to the correct file path before running the pass
+ *
+ * This file contains the implementation of the SeminalInputFeaturesAnalysis pass.
+ * The pass performs the following tasks:
+ * 1. Find conditional branching and store them
+ * 2. Map the variables to their names (using debug information)
+ * 3. Find the ways in which the mapped variables are used
+ * 4. Perform the analysis and print the outputs to a file
+ */
+
 #include <string>
 #include <vector>
 #include <map>
@@ -17,6 +32,9 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/LoopAnalysisManager.h"
 
 using namespace llvm;
 
@@ -118,7 +136,31 @@ namespace
                 }
             }
 
+            // OBJECTIVE: Perform the analysis and print the outputs to a file
+
             performAnalysis();
+
+            writeToFile("\n====================================\n");
+            writeToFile("Analysis of Loops: \n");
+
+            // OBJECTIVE: Perform Loop Analysis
+
+            auto &FAM = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
+
+            for (Function &F : M)
+            {
+                if (F.isDeclaration())
+                {
+                    continue;
+                }
+
+                auto &LI = FAM.getResult<LoopAnalysis>(F);
+
+                for (Loop *L : LI)
+                {
+                    analyzeLoop(L);
+                }
+            }
 
             writeToFile("\n====================================\n");
             writeToFile("End of Seminal Input Features Analysis Pass\n");
@@ -136,6 +178,8 @@ namespace
          * 3. dependentInstructions: Mapped instructions to their dependent instructions.
          * 4. branches: All conditional branches are stored here
          * 5. calledFunc: Any function that may be called by user input functions
+         * 6. libraryFunctions: A list of library functions that are considered for analysis
+         * 7. FILE_NAME: The name of the file where the output will be written
          */
 
         bool flag_for_file = false;
@@ -144,8 +188,9 @@ namespace
         std::map<Value *, std::set<Instruction *>> dependentInstructions;
         std::vector<BranchInst *> branches;
         std::map<Value *, std::string> calledFunc;
-        // List of user input functions to be monitored
         std::vector<std::string> libraryFunctions = {"getc", "fopen", "scanf", "fclose", "fread", "fwrite"};
+
+        std::string FILE_NAME = "analysis_output.txt";
 
         /**
          * @brief Perform def-use analysis on the given value(instruction) and find its dependent instructions
@@ -213,7 +258,7 @@ namespace
         {
             std::string FuncName = CI->getCalledFunction()->getName().str();
 
-            // check if function among library functions and if it is, return
+            // check if function among library functions. If not then we are not interested
             if (std::find(libraryFunctions.begin(), libraryFunctions.end(), FuncName) == libraryFunctions.end())
             {
                 return;
@@ -235,8 +280,8 @@ namespace
                 // only perform analysis on pointer arguments (others maybe call by value)
                 if (arg->get()->getType()->getTypeID() == Type::TypeID::PointerTyID)
                 {
-                    auto argumentValue = arg->get();
-                    defUseAnalysis(argumentValue, dependentInstructions[CI]);
+                    auto argVal = arg->get();
+                    defUseAnalysis(argVal, dependentInstructions[CI]);
                 }
             }
 
@@ -267,6 +312,17 @@ namespace
             }
         }
 
+        /**
+         * @brief Perform the analysis and print the outputs to a file
+         *
+         * This function performs the following tasks:
+         * 1. Iterate over all the conditional branches
+         * 2. For each branch, check if the condition is a comparison instruction
+         * 3. If it is, find the operands of the comparison instruction
+         * 4. Find the dependent instructions of the operands
+         * 5. If the dependent instructions are found, print the output to a file
+         * 6. The output includes the line number of the branch, the seminal input detected, and the function used
+         */
         void performAnalysis()
         {
             for (auto branch : branches)
@@ -296,7 +352,7 @@ namespace
 
                     if (branch_call_mapping.size() > 0)
                     {
-                        writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
+                        writeToFile("\nLine Number" + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
 
                         for (auto call : branch_call_mapping)
                         {
@@ -304,13 +360,13 @@ namespace
 
                             if (auto CI = dyn_cast<CallInst>(call.first))
                             {
-                                writeToFile("\nSeminal input detected: ");
+                                writeToFile("\nSeminal Input: ");
                                 for (auto var : call.second)
                                 {
                                     writeToFile(var + ", ");
                                 }
                                 writeToFile("\n");
-                                writeToFile("user input using function " + funcName + " on line " + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
+                                writeToFile("Function-" + funcName + "on line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
                             }
                         }
                     }
@@ -318,13 +374,39 @@ namespace
             }
         }
 
+        void analyzeLoop(Loop *L)
+        {
+            // Analyze exit conditions
+            for (BasicBlock *ExitBlock : L->getExitBlocks())
+            {
+                for (auto &I : *ExitBlock)
+                {
+                    if (auto *Cmp = dyn_cast<ICmpInst>(&I))
+                    {
+                        errs() << "Exit Condition: " << *Cmp << "\n";
+                        if (Value *Operand = Cmp->getOperand(1))
+                        {
+                            errs() << "Influential Variable: " << Operand->getName() << "\n";
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * @brief Write the content to a file
+         * @param content The content to be written to the file
+         *
+         * This function writes the content to a file. If the file does not exist, it creates a new file.
+         * If the file exists,it deletes the file and creates a new file. (to avoid appending to existing file)
+         */
         void writeToFile(std::string content)
         {
             std::ofstream file;
             // Delete file if it already exists, otherwise create a new file.
             if (!flag_for_file)
             {
-                file.open("lol.txt", std::fstream::out | std::fstream::trunc);
+                file.open(FILE_NAME, std::fstream::out | std::fstream::trunc);
                 flag_for_file = true;
             }
             // Open the file in append mode (after start)
