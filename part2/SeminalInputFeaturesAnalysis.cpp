@@ -22,7 +22,7 @@ using namespace llvm;
 
 namespace
 {
-    class SeminalInputAnalysis : public PassInfoMixin<SeminalInputAnalysis>
+    class SeminalInputFeaturesAnalysis : public PassInfoMixin<SeminalInputFeaturesAnalysis>
     {
     public:
         /**
@@ -33,7 +33,8 @@ namespace
          */
         PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
         {
-            writeToFile("Seminal Input Analysis\n");
+            writeToFile("Seminal Input Features Analysis Pass:\n");
+            writeToFile("====================================\n");
 
             // OBJECTIVE: Find conditional branching
 
@@ -111,6 +112,9 @@ namespace
             }
 
             performAnalysis();
+
+            writeToFile("\n====================================\n");
+            writeToFile("End of Seminal Input Features Analysis Pass\n");
 
             return PreservedAnalyses::all();
         }
@@ -400,13 +404,14 @@ extern "C" LLVM_ATTRIBUTE_WEAK PassPluginLibraryInfo llvmGetPassPluginInfo()
 {
     return {
         .APIVersion = LLVM_PLUGIN_API_VERSION,
+        .PluginName = "SeminalInputFeaturesAnalysis",
         .PluginVersion = "v0.1",
         .RegisterPassBuilderCallbacks = [](PassBuilder &PB)
         {
             PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level)
                 {
-                    MPM.addPass(SeminalInputAnalysis());
+                    MPM.addPass(SeminalInputFeaturesAnalysis());
                 });
         }};
 }
