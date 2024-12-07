@@ -392,19 +392,6 @@ namespace
                         }
                     }
                 }
-
-                // std::string va = "callInstToVarNames\n";
-                // for (auto entry : callInstToVarNames)
-                // {
-                //     va += std::to_string(reinterpret_cast<uintptr_t>(entry.first)) + " : ";
-                //     for (auto ins : entry.second)
-                //     {
-                //         va += ins + " ";
-                //     }
-                //     va += "\n";
-                // }
-
-                // writeToFile(va);
             }
             return callInstToVarNames;
         }
@@ -518,12 +505,11 @@ namespace
 extern "C" LLVM_ATTRIBUTE_WEAK PassPluginLibraryInfo llvmGetPassPluginInfo()
 {
     return {
-        LLVM_PLUGIN_API_VERSION,
-        "SeminalInputAnalysis",
-        "v0.1",
-        [](PassBuilder &PB)
+        .APIVersion = LLVM_PLUGIN_API_VERSION,
+        .PluginName = "SeminalInputFeaturesAnalysis",
+        .PluginVersion = "v0.1",
+        .RegisterPassBuilderCallbacks = [](PassBuilder &PB)
         {
-            // Register your pass to run at the end of the module optimization pipeline
             PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level)
                 {
