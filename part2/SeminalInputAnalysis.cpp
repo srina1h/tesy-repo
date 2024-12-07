@@ -293,6 +293,7 @@ namespace
                 if (!callInstToVarNames.empty())
                 {
                     outs() << "\nLine " << branch->getDebugLoc()->getLine() << ": ";
+                    writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
                     processUserInputCalls(callInstToVarNames, valueToNameMap);
                 }
             }
