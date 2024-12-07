@@ -50,8 +50,7 @@ namespace
                                 branches.push_back(BI);
                             }
                         }
-
-                        if (auto *DI = dyn_cast<DbgDeclareInst>(&I))
+                        else if (auto *DI = dyn_cast<DbgDeclareInst>(&I))
                         {
                             std::string varName = DI->getVariable()->getName().str();
 
@@ -151,11 +150,6 @@ namespace
             "fgetwc",
             "getwc",
         };
-
-        void processDbgInst(DbgDeclareInst *DI)
-        {
-            // Extract the variable name from the debug information.
-        }
 
         void defUseAnalysis(Value *value, std::set<Instruction *> &dependents)
         {
