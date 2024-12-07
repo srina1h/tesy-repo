@@ -54,21 +54,7 @@ namespace
         {
             writeToFile("Seminal Input Analysis\n");
 
-            std::map<Value *, std::string> variables;
-            // Maps LLVM Values to their corresponding variable names as found in the source code.
-            // This is used to associate LLVM's internal representation with human-readable variable names.
-
-            std::map<Value *, std::set<Instruction *>> dependentInstructions;
-            // Maps a call instruction to a set of instructions that are dependent on it.
-            // This helps in tracking the flow and influence of function calls throughout the program.
-
-            std::vector<BranchInst *> branches;
-            // A list of all conditional branch instructions found during the analysis.
-            // These are the branches that will be analyzed for user input dependencies.
-
-            std::map<Value *, std::string> calledFunc;
-            // Maps LLVM Values, specifically function call instructions, to their corresponding function names.
-            // This aids in identifying which function calls are present in the analyzed code.
+            // OBJECTIVE: Find conditional branching
 
             for (Function &F : M)
             {
@@ -86,11 +72,14 @@ namespace
 
                         if (auto *asDbgInst = dyn_cast<DbgDeclareInst>(&I))
                         {
-                            processDbgInst(asDbgInst, variables);
+                            processDbgInst(asDbgInst);
                         }
                     }
                 }
             }
+
+            // OBJECTIVE: Go through the call instructions and find the ways in which our mapped variables are used
+
             for (Function &F : M)
             {
                 for (BasicBlock &BB : F)
@@ -101,28 +90,49 @@ namespace
                         {
                             if (asCallInst->getCalledFunction())
                             {
-                                processCallInstruction(asCallInst, dependentInstructions, calledFunc, variables);
+                                processCallInstruction(asCallInst);
                             }
                         }
                     }
                 }
             }
 
-            analyzeAndPrintOutput(variables, calledFunc, dependentInstructions, branches);
+            analyzeAndPrintOutput();
 
             return PreservedAnalyses::all();
         }
 
     private:
+        /*
+        Define the variables that will be used throughout the analysis.
+        */
+
+        // Flag to check if file is created or not
         bool flag_for_file = false;
 
-        void processDbgInst(DbgDeclareInst *asDbgInst, std::map<Value *, std::string> &valueToVariableNameMap)
+        std::map<Value *, std::string> variables;
+        // Maps LLVM Values to their corresponding variable names as found in the source code.
+        // This is used to associate LLVM's internal representation with human-readable variable names.
+
+        std::map<Value *, std::set<Instruction *>> dependentInstructions;
+        // Maps a call instruction to a set of instructions that are dependent on it.
+        // This helps in tracking the flow and influence of function calls throughout the program.
+
+        std::vector<BranchInst *> branches;
+        // A list of all conditional branch instructions found during the analysis.
+        // These are the branches that will be analyzed for user input dependencies.
+
+        std::map<Value *, std::string> calledFunc;
+        // Maps LLVM Values, specifically function call instructions, to their corresponding function names.
+        // This aids in identifying which function calls are present in the analyzed code.
+
+        void processDbgInst(DbgDeclareInst *asDbgInst)
         {
             // Extract the variable name from the debug information.
             std::string variableName = asDbgInst->getVariable()->getName().str();
 
             // Map the address of the variable to its name.
-            valueToVariableNameMap[asDbgInst->getAddress()] = variableName;
+            variables[asDbgInst->getAddress()] = variableName;
 
             // Collect all instructions that use this variable.
             std::set<Instruction *> varUsers;
@@ -136,7 +146,7 @@ namespace
                 {
                     if (loadInst->getOperand(0) == asDbgInst->getAddress())
                     {
-                        valueToVariableNameMap[loadInst] = variableName;
+                        variables[loadInst] = variableName;
                     }
                 }
                 // Similarly, for Store instructions, map the instruction to the variable name.
@@ -144,18 +154,18 @@ namespace
                 {
                     if (storeInst->getOperand(1) == asDbgInst->getAddress())
                     {
-                        valueToVariableNameMap[storeInst] = variableName;
+                        variables[storeInst] = variableName;
                     }
                 }
                 // For Unary instructions, directly map the instruction to the variable name.
                 else if (auto unaryInst = dyn_cast<UnaryInstruction>(user))
                 {
-                    valueToVariableNameMap[unaryInst] = variableName;
+                    variables[unaryInst] = variableName;
                 }
             }
         }
 
-        void defUseAnalysis(Value *value, std::set<Instruction *> &userInstructions)
+        void defUseAnalysis(Value *value, std::set<Instruction *> &dependents)
         {
             // Check if the value is null to prevent processing an invalid value.
             if (!value)
@@ -170,19 +180,19 @@ namespace
                 if (Instruction *inst = dyn_cast<Instruction>(user))
                 {
                     // Avoid re-processing an instruction already in the set.
-                    if (userInstructions.find(inst) != userInstructions.end())
+                    if (dependents.find(inst) != dependents.end())
                     {
                         return;
                     }
 
                     // Add the instruction to the set of users.
-                    userInstructions.insert(inst);
+                    dependents.insert(inst);
 
                     // Special handling for Store instructions: recursively collect users of the pointer operand.
                     if (isa<StoreInst>(inst))
                     {
                         auto storeInst = dyn_cast<StoreInst>(inst);
-                        defUseAnalysis(storeInst->getPointerOperand(), userInstructions);
+                        defUseAnalysis(storeInst->getPointerOperand(), dependents);
                     }
                     // Special handling for Return instructions: if it returns a value, recursively collect users.
                     else if (isa<ReturnInst>(inst))
@@ -190,20 +200,17 @@ namespace
                         auto asRetInstruction = dyn_cast<ReturnInst>(inst);
                         if (asRetInstruction->getReturnValue())
                         {
-                            defUseAnalysis(asRetInstruction->getFunction(), userInstructions);
+                            defUseAnalysis(asRetInstruction->getFunction(), dependents);
                         }
                     }
 
                     // Recursively collect users of this instruction.
-                    defUseAnalysis(inst, userInstructions);
+                    defUseAnalysis(inst, dependents);
                 }
             }
         }
 
-        void processCallInstruction(CallInst *callInstruction,
-                                    std::map<Value *, std::set<Instruction *>> &instructionDependencyMap,
-                                    std::map<Value *, std::string> &valueToNameMap,
-                                    std::map<Value *, std::string> &valueToVariableNameMap)
+        void processCallInstruction(CallInst *callInstruction)
         {
             // Extract the name of the function being called.
             std::string calledFunctionName = callInstruction->getCalledFunction()->getName().str();
@@ -218,14 +225,14 @@ namespace
             }
 
             // Initialize the entry in the instruction dependency map for this call instruction if it doesn't exist.
-            if (instructionDependencyMap.find(callInstruction) == instructionDependencyMap.end())
+            if (dependentInstructions.find(callInstruction) == dependentInstructions.end())
             {
-                instructionDependencyMap[callInstruction] = {};
-                valueToNameMap[callInstruction] = calledFunctionName;
+                dependentInstructions[callInstruction] = {};
+                calledFunc[callInstruction] = calledFunctionName;
             }
 
             // Collect users of this call instruction recursively.
-            defUseAnalysis(callInstruction, instructionDependencyMap[callInstruction]);
+            defUseAnalysis(callInstruction, dependentInstructions[callInstruction]);
 
             // Iterate over the arguments of the call instruction.
             for (auto arg = callInstruction->arg_begin(); arg != callInstruction->arg_end(); ++arg)
@@ -234,7 +241,7 @@ namespace
                 {
                     auto argumentValue = arg->get();
                     // Collect users of this argument recursively.
-                    defUseAnalysis(argumentValue, instructionDependencyMap[callInstruction]);
+                    defUseAnalysis(argumentValue, dependentInstructions[callInstruction]);
                 }
             }
 
@@ -242,14 +249,14 @@ namespace
             Instruction *traceInstruction = callInstruction;
 
             // Iterate over the value to variable name map.
-            for (auto entry : valueToVariableNameMap)
+            for (auto entry : variables)
             {
                 // Check for Store instructions and update mapping.
                 if (auto storeInstruction = dyn_cast<StoreInst>(entry.first))
                 {
                     if (storeInstruction->getOperand(0) == traceInstruction)
                     {
-                        valueToVariableNameMap[callInstruction] = valueToVariableNameMap[entry.first];
+                        variables[callInstruction] = variables[entry.first];
                         break;
                     }
                 }
@@ -278,25 +285,22 @@ namespace
             // }
         }
 
-        void analyzeAndPrintOutput(std::map<Value *, std::string> &valueToVariableNameMap,
-                                   std::map<Value *, std::string> &valueToNameMap,
-                                   std::map<Value *, std::set<Instruction *>> &callInstructionDependencyMap,
-                                   std::vector<BranchInst *> &conditionalBranches)
+        void analyzeAndPrintOutput()
         {
             // Iterate over each conditional branch instruction.
-            for (auto branch : conditionalBranches)
+            for (auto branch : branches)
             {
                 // Retrieve the values involved in the condition of the branch.
                 auto condValues = getConditionalValues(branch);
                 // Map call instructions to variable names based on these conditional values.
-                auto callInstToVarNames = mapCallInstToVarNames(condValues, callInstructionDependencyMap, valueToVariableNameMap);
+                auto callInstToVarNames = mapCallInstToVarNames(condValues);
 
                 // If there are any call instructions associated with this branch, process them.
                 if (!callInstToVarNames.empty())
                 {
                     outs() << "\nLine " << branch->getDebugLoc()->getLine() << ": ";
                     writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
-                    processUserInputCalls(callInstToVarNames, valueToNameMap);
+                    processUserInputCalls(callInstToVarNames, calledFunc);
                 }
             }
         }
@@ -318,13 +322,11 @@ namespace
         }
 
         std::map<Value *, std::vector<std::string>> mapCallInstToVarNames(
-            const std::vector<Value *> &condValues,
-            const std::map<Value *, std::set<Instruction *>> &callInstructionDependencyMap,
-            const std::map<Value *, std::string> &valueToVariableNameMap)
+            const std::vector<Value *> &condValues)
         {
             std::map<Value *, std::vector<std::string>> callInstToVarNames;
             // Iterate over the call instruction dependency map.
-            for (auto entry : callInstructionDependencyMap)
+            for (auto entry : dependentInstructions)
             {
                 // For each instruction that uses a value involved in a conditional branch.
                 for (auto use : entry.second)
@@ -332,9 +334,9 @@ namespace
                     if (std::find(condValues.begin(), condValues.end(), use) != condValues.end())
                     {
                         // If a variable name is associated with the use, add it to the map.
-                        if (valueToVariableNameMap.find(use) != valueToVariableNameMap.end())
+                        if (variables.find(use) != variables.end())
                         {
-                            callInstToVarNames[entry.first].push_back(valueToVariableNameMap.at(use));
+                            callInstToVarNames[entry.first].push_back(variables.at(use));
                         }
                     }
                 }
@@ -343,13 +345,13 @@ namespace
         }
 
         void processUserInputCalls(const std::map<Value *, std::vector<std::string>> &callInstToVarNames,
-                                   const std::map<Value *, std::string> &valueToNameMap)
+                                   const std::map<Value *, std::string> &calledFunc)
         {
             // Iterate over all call instructions that are influenced by user input.
             for (auto userInputCall : callInstToVarNames)
             {
                 // Get the name of the function being called.
-                auto calledFunctName = getFunctionName(userInputCall.first, valueToNameMap);
+                auto calledFunctName = getFunctionName(userInputCall.first);
                 // Clean any compiler-specific information from the function name.
                 cleanFunctionNameFromCompilerInfo(calledFunctName);
 
@@ -375,34 +377,28 @@ namespace
             writeToFile("user input using function " + functionName + " on line " + std::to_string(asCallInst->getDebugLoc()->getLine()) + "\n");
         }
 
-        std::string getFunctionName(Value *callInst, const std::map<Value *, std::string> &valueToNameMap)
+        std::string getFunctionName(Value *callInst)
         {
             // Return the function name if found, otherwise return a placeholder.
-            return valueToNameMap.find(callInst) != valueToNameMap.end() ? valueToNameMap.at(callInst) : "some function";
+            return calledFunc.find(callInst) != calledFunc.end() ? calledFunc.at(callInst) : "some function";
         }
 
         void writeToFile(std::string content)
         {
-            // Write the content to a file lol.txt, if not there, create one, if it alreeady exists delete it
-
             std::ofstream file;
+            // Delete file if it already exists, otherwise create a new file.
             if (!flag_for_file)
             {
                 file.open("lol.txt", std::fstream::out | std::fstream::trunc);
                 flag_for_file = true;
             }
+            // Open the file in append mode (after start)
             else
             {
                 file.open("lol.txt", std::fstream::app);
             }
             file << content;
             file.close();
-
-            // std::ofstream file;
-            // file.open("lol.txt", std::fstream::app);
-
-            // file << content;
-            // file.close();
         }
     };
 }
