@@ -142,7 +142,7 @@ namespace
             performAnalysis();
 
             writeToFile("\n==================================\n");
-            writeToFile("Analysis of Loops: \n");
+            writeToFile("Analysis of Loops:");
             writeToFile("\n==================================\n");
 
             // OBJECTIVE: Perform Loop Analysis
@@ -354,7 +354,7 @@ namespace
 
                     if (branch_call_mapping.size() > 0)
                     {
-                        writeToFile("\nLine # " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
+                        writeToFile("\nAt Line # " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
                         writeToFile("\nSeminal Input variable: ");
                         bool first = true;
 
@@ -374,7 +374,7 @@ namespace
 
                             if (auto CI = dyn_cast<CallInst>(call.first))
                             {
-                                writeToFile("used at Function\"" + funcName + "\" on Line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
+                                writeToFile("used at Function \"" + funcName + "\" on Line #" + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
                             }
                         }
                     }
@@ -386,7 +386,10 @@ namespace
         {
             SmallVector<llvm::BasicBlock *, 8> ExitBlocks;
             L->getExitBlocks(ExitBlocks);
-            // Analyze exit conditions
+
+            std::map<std::string, std::set<std::string>> variablesInLine;
+
+            // Analyze exit conditions to see the variables that are influential in the loop condition
             for (BasicBlock *ExitBlock : ExitBlocks)
             {
                 for (auto &I : *ExitBlock)
@@ -399,21 +402,28 @@ namespace
                             {
                                 llvm::Value *Operand = Cmp->getOperand(i);
 
-                                writeToFile("\nInfluential loop Operand: ");
+                                // writeToFile("\nInfluential loop Operand: ");
 
                                 std::string operandName = variables[Operand];
 
-                                writeToFile(operandName + " at Line # " + std::to_string(Cmp->getDebugLoc()->getLine()) + "\n");
+                                // writeToFile(operandName + " at Line # " + std::to_string(Cmp->getDebugLoc()->getLine()) + "\n");
+
+                                variablesInLine[operandName].insert(std::to_string(Cmp->getDebugLoc()->getLine()));
                             }
                         }
-                        // errs() << "Exit Condition: " << *Cmp << "\n";
-                        // if (Value *Operand = Cmp->getOperand(1))
-                        // {
-                        //     StringRef operandName = Operand->getName();
-                        //     errs() << "Influential Variable: " << operandName << "\n";
-                        //     writeToFile("\nInfluential Variable: " + operandName.str() + "\n");
-                        // }
                     }
+                }
+            }
+
+            // record the variables that are influential in the loop condition
+
+            for (auto var : variablesInLine)
+            {
+                writeToFile("\nInfluential loop operand used" + var.first + " in Lines:");
+                bool first = true;
+                for (auto line : var.second)
+                {
+                    writeToFile(" #" + line + "");
                 }
             }
         }
