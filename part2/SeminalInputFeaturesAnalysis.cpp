@@ -387,14 +387,12 @@ namespace
                     {
                         for (unsigned i = 0; i < Cmp->getNumOperands(); ++i)
                         {
-                            if (i == 1)
+                            if (i == 1 && variables.find(Cmp->getOperand(i)) != variables.end())
                             {
                                 llvm::Value *Operand = Cmp->getOperand(i);
 
-                                // Print operand directly
                                 llvm::errs() << "Operand " << i << ": ";
-                                // Operand->print(llvm::errs());
-                                // llvm::errs() << "\n";
+
                                 std::string operandName = variables[Operand];
 
                                 llvm::errs() << operandName << "at line no" << Cmp->getDebugLoc()->getLine() << "\n";
