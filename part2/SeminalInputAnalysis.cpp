@@ -103,14 +103,14 @@ namespace
                         {
                             if (CI->getCalledFunction())
                             {
-                                processCallInstruction(CI);
+                                checkCallInst(CI);
                             }
                         }
                     }
                 }
             }
 
-            analyzeAndPrintOutput();
+            performAnalysis();
 
             return PreservedAnalyses::all();
         }
@@ -134,32 +134,17 @@ namespace
         std::vector<BranchInst *> branches;
         std::map<Value *, std::string> calledFunc;
         // List of user input functions to be monitored
-        std::vector<std::string> libraryFunctions = {
-            "fopen",
-            "freopen",
-            "fscanf",
-            "scanf",
-            "sscanf",
-            "fgetc",
-            "fgets",
-            "getc",
-            "getchar",
-            "gets",
-            "get_s",
-            "fread",
-            "fgetwc",
-            "getwc",
-        };
+        std::vector<std::string> libraryFunctions = {"getc", "fopen", "scanf", "fclose", "fread", "fwrite"};
 
-        void defUseAnalysis(Value *value, std::set<Instruction *> &dependents)
+        void defUseAnalysis(Value *v, std::set<Instruction *> &dependents)
         {
             // Check for value
-            if (!value)
+            if (!v)
             {
                 return;
             }
 
-            for (User *U : value->users())
+            for (User *U : v->users())
             {
                 if (Instruction *I = dyn_cast<Instruction>(U))
                 {
@@ -185,14 +170,16 @@ namespace
                             defUseAnalysis(RI->getFunction(), dependents);
                         }
                     }
-
-                    // Recursively collect users of this instruction.
-                    defUseAnalysis(I, dependents);
+                    else
+                    {
+                        // recursively call defUseAnalysis
+                        defUseAnalysis(I, dependents);
+                    }
                 }
             }
         }
 
-        void processCallInstruction(CallInst *CI)
+        void checkCallInst(CallInst *CI)
         {
             std::string FuncName = CI->getCalledFunction()->getName().str();
 
@@ -249,7 +236,58 @@ namespace
             }
         }
 
-        void analyzeAndPrintOutput()
+        void performAnalysis()
+        {
+            for (auto branch : branches)
+            {
+                auto condition = branch->getCondition();
+
+                if (isa<ICmpInst>(condition))
+                {
+                    std::map<Value *, std::vector<std::string>> branch_call_mapping;
+                    auto cmp = dyn_cast<ICmpInst>(condition);
+                    auto op1 = cmp->getOperand(0);
+                    auto op2 = cmp->getOperand(1);
+
+                    for (auto inst : dependentInstructions)
+                    {
+                        for (auto dep : inst.second)
+                        {
+                            if (dep == cmp)
+                            {
+                                if (variables.find(dep) != variables.end())
+                                {
+                                    branch_call_mapping[inst.first].push_back(variables.at(dep));
+                                }
+                            }
+                        }
+                    }
+
+                    if (branch_call_mapping.size() > 0)
+                    {
+                        writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
+
+                        for (auto call : branch_call_mapping)
+                        {
+                            std::string funcName = calledFunc.find(call.first) != calledFunc.end() ? calledFunc.at(call.first) : "unkown";
+
+                            if (auto CI = dyn_cast<CallInst>(call.first))
+                            {
+                                writeToFile("\nSeminal input detected: ");
+                                for (auto var : call.second)
+                                {
+                                    writeToFile(var + ", ");
+                                }
+                                writeToFile("\n");
+                                writeToFile("user input using function " + funcName + " on line " + std::to_string(CI->getDebugLoc()->getLine()) + "\n");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        void perform_Analysis()
         {
             // Iterate over each conditional branch instruction.
             for (auto branch : branches)
@@ -262,7 +300,6 @@ namespace
                 // If there are any call instructions associated with this branch, process them.
                 if (!callInstToVarNames.empty())
                 {
-                    outs() << "\nLine " << branch->getDebugLoc()->getLine() << ": ";
                     writeToFile("\nLine " + std::to_string(branch->getDebugLoc()->getLine()) + ": ");
                     processUserInputCalls(callInstToVarNames, calledFunc);
                 }
