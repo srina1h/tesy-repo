@@ -49,7 +49,7 @@ namespace
         {
             writeToFile("Seminal Input Analysis\n");
 
-            std::map<Value *, std::string> valueToVariableNameMap;
+            std::map<Value *, std::string> variables;
             // Maps LLVM Values to their corresponding variable names as found in the source code.
             // This is used to associate LLVM's internal representation with human-readable variable names.
 
@@ -81,7 +81,7 @@ namespace
 
                         if (auto *asDbgInst = dyn_cast<DbgDeclareInst>(&I))
                         {
-                            processDbgInst(asDbgInst, valueToVariableNameMap);
+                            processDbgInst(asDbgInst, variables);
                         }
                     }
                 }
@@ -96,14 +96,14 @@ namespace
                         {
                             if (asCallInst->getCalledFunction())
                             {
-                                processCallInstruction(asCallInst, callInstructionDependencyMap, valueToNameMap, valueToVariableNameMap);
+                                processCallInstruction(asCallInst, callInstructionDependencyMap, valueToNameMap, variables);
                             }
                         }
                     }
                 }
             }
 
-            analyzeAndPrintOutput(valueToVariableNameMap, valueToNameMap, callInstructionDependencyMap, branches);
+            analyzeAndPrintOutput(variables, valueToNameMap, callInstructionDependencyMap, branches);
 
             return PreservedAnalyses::all();
         }
